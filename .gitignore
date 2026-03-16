@@ -1,0 +1,33 @@
+# Build output
+project/build/
+
+# VSCode (개인 설정은 제외, 공유 설정은 포함)
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
+!CMakeLists.txt
+
+# Compiled binaries
+*.exe
+*.out
+*.o
+*.obj
+*.lib
+*.a
+*.dll
+*.so
+
+# Visual Studio
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.suo
+*.user
+.vs/
