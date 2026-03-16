@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/project/src",
+                "${workspaceFolder}/project/build/_deps/googletest-src/googletest/include",
+                "${workspaceFolder}/project/build/_deps/googletest-src/googlemock/include"
+            ],
+            "cppStandard": "c++17",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
