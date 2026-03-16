@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "math.h"
 
 TEST(MathTest, Add) {
