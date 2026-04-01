@@ -85,12 +85,13 @@ jobs:
 
       - name: clang-tidy
         if: ${{ !cancelled() }}
-        run: |
-          if ! command -v clang-tidy >/dev/null 2>&1; then
-            echo "clang-tidy not found, skipping"
-            exit 0
-          fi
-          find src -name "*.cpp" | xargs clang-tidy -p build --quiet
+        uses: reviewdog/action-clang-tidy@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          clang_tidy_flags: "-p build"
+          reporter: ${{ github.event_name == 'pull_request' && 'github-pr-review' || 'github-check' }}
+          filter_mode: added
+          fail_on_error: false
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
