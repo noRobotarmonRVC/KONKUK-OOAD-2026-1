@@ -86,6 +86,8 @@ jobs:
       - name: clang-tidy
         if: ${{ !cancelled() }}
         uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           database: project/build
           style: file
