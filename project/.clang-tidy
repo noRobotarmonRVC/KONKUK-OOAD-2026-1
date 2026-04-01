@@ -7,10 +7,10 @@
 Checks: >
   -*,
   bugprone-*,
-  modernize-use-nullptr,
-  modernize-use-override,
-  readability-braces-around-statements,
-  readability-identifier-naming
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  readability-*
 
 # 여기 지정한 규칙을 위반하면 경고가 아니라 에러로 처리 (빌드 실패)
 # 지금은 비워둬서 모두 경고로만 표시

@@ -94,7 +94,7 @@ jobs:
           database: project/build
           style: file
           tidy-checks: ""
-          lines-changed-only: true
+          lines-changed-only: false
           thread-comments: true
           ignore: build|tests
 
