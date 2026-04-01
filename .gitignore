@@ -31,3 +31,5 @@ cmake_install.cmake
 *.suo
 *.user
 .vs/
+.vscode/c_cpp_properties.json
+.gitignore
