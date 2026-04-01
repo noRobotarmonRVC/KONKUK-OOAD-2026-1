@@ -3,8 +3,20 @@ name: C++ CI with GoogleTest + SonarQube Cloud
 on:
   push:
     branches: [ "main", "develop" ]
+    paths:
+      - "project/src/**"
+      - "project/tests/**"
+      - "project/CMakeLists.txt"
+      - "project/cmake/**"
+      - ".github/workflows/**"
   pull_request:
     branches: [ "main", "develop" ]
+    paths:
+      - "project/src/**"
+      - "project/tests/**"
+      - "project/CMakeLists.txt"
+      - "project/cmake/**"
+      - ".github/workflows/**"
 
 jobs:
   build-test-sonar:
@@ -24,54 +36,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
 
-      - name: Verify runner prerequisites
-        run: |
-          set -euo pipefail
+      - name: Cache Sonar packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-          echo "== OS =="
-          uname -a
-
-          echo "== Check required commands =="
-          command -v cmake
-          command -v gcc
-          command -v g++
-          command -v gcov
-          command -v python3
-          command -v pip
-          command -v unzip
-          command -v ctest
-
-          if command -v curl >/dev/null 2>&1; then
-            echo "curl found: $(command -v curl)"
-          elif command -v wget >/dev/null 2>&1; then
-            echo "wget found: $(command -v wget)"
-          else
-            echo "ERROR: curl or wget is required."
-            exit 1
-          fi
-
-          echo "== Versions =="
-          cmake --version
-          gcc --version
-          g++ --version
-          gcov --version
-          python3 --version
-          pip --version
-          ctest --version
-          unzip -v | head -n 2
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('project/CMakeLists.txt', 'project/src/**', 'project/tests/**') }}
+          restore-keys: ${{ runner.os }}-ccache-
 
       - name: Install gcovr
-        run: pip install gcovr
-
-      - name: Verify gcovr
-        run: gcovr --version
+        run: pip install --disable-pip-version-check gcovr
 
       - name: Install Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v7
@@ -82,6 +70,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_C_FLAGS="--coverage -O0 -g"
           -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build with Build Wrapper
         run: |
@@ -95,16 +85,12 @@ jobs:
         run: |
           gcovr \
             --root . \
+            --filter src \
+            --exclude tests \
             --sonarqube coverage.xml
 
-      - name: Check generated artifacts
-        run: |
-          test -f "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
-          test -f "coverage.xml"
-          ls -l "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
-          ls -l "coverage.xml"
-
-      - name: SonarQube Scan
+      - name: SonarQube Scan (PR / develop)
+        if: github.event_name == 'pull_request' || github.ref_name == 'develop'
         uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -114,8 +100,24 @@ jobs:
             -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
             -Dsonar.sources=src
-            -Dsonar.tests=tests
-            -Dsonar.cfamily.compile-commands=project/bw-output/compile_commands.json
+            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
             -Dsonar.coverageReportPaths=coverage.xml
             -Dsonar.exclusions=build/**
+            -Dsonar.cfamily.threads=4
+
+      - name: SonarQube Scan (main only, wait for QG)
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: project
+          args: >
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=src
+            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+            -Dsonar.coverageReportPaths=coverage.xml
+            -Dsonar.exclusions=build/**
+            -Dsonar.cfamily.threads=4
             -Dsonar.qualitygate.wait=true
