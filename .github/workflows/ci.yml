@@ -18,6 +18,10 @@ on:
       - "project/cmake/**"
       - ".github/workflows/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test-sonar:
     runs-on: [self-hosted, linux]
@@ -42,7 +46,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Cache Sonar packages
         uses: actions/cache@v4
@@ -51,7 +54,16 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      - name: Detect ccache
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            echo "USE_CCACHE=1" >> "$GITHUB_ENV"
+          else
+            echo "USE_CCACHE=0" >> "$GITHUB_ENV"
+          fi
+
       - name: Cache ccache
+        if: env.USE_CCACHE == '1'
         uses: actions/cache@v4
         with:
           path: ~/.ccache
@@ -59,19 +71,28 @@ jobs:
           restore-keys: ${{ runner.os }}-ccache-
 
       - name: Install gcovr
-        run: pip install --disable-pip-version-check gcovr
+        run: python -m pip install --disable-pip-version-check gcovr
 
       - name: Install Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v7
 
       - name: Configure
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_C_FLAGS="--coverage -O0 -g"
-          -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: |
+          CMAKE_ARGS=(
+            -S . -B build
+            -DCMAKE_BUILD_TYPE=Debug
+            "-DCMAKE_C_FLAGS=--coverage -O0 -g"
+            "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
+          )
+
+          if [ "${USE_CCACHE}" = "1" ]; then
+            CMAKE_ARGS+=(
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            )
+          fi
+
+          cmake "${CMAKE_ARGS[@]}"
 
       - name: Build with Build Wrapper
         run: |
@@ -89,6 +110,11 @@ jobs:
             --exclude tests \
             --sonarqube coverage.xml
 
+      - name: Check generated artifacts
+        run: |
+          test -f "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
+          test -f "coverage.xml"
+
       - name: SonarQube Scan (PR / develop)
         if: github.event_name == 'pull_request' || github.ref_name == 'develop'
         uses: SonarSource/sonarqube-scan-action@v7
@@ -103,7 +129,6 @@ jobs:
             -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
             -Dsonar.coverageReportPaths=coverage.xml
             -Dsonar.exclusions=build/**
-            -Dsonar.cfamily.threads=4
 
       - name: SonarQube Scan (main only, wait for QG)
         if: github.event_name == 'push' && github.ref_name == 'main'
@@ -119,5 +144,5 @@ jobs:
             -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
             -Dsonar.coverageReportPaths=coverage.xml
             -Dsonar.exclusions=build/**
-            -Dsonar.cfamily.threads=4
             -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
