@@ -1,4 +1,4 @@
-name: C++ CI with GoogleTest + SonarQube Cloud
+name: C++ CI with GoogleTest + clang-tidy + Codecov
 
 on:
   push:
@@ -23,18 +23,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test-sonar:
+  build-test:
     runs-on: [self-hosted, linux]
+    permissions:
+      pull-requests: write
 
     defaults:
       run:
         shell: bash
         working-directory: ./project
-
-    env:
-      BUILD_WRAPPER_OUT_DIR: bw-output
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
 
     steps:
       - name: Checkout
@@ -46,13 +43,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Cache Sonar packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
 
       - name: Detect ccache
         run: |
@@ -73,9 +63,6 @@ jobs:
       - name: Install gcovr
         run: python -m pip install --disable-pip-version-check gcovr
 
-      - name: Install Build Wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v7
-
       - name: Configure
         run: |
           CMAKE_ARGS=(
@@ -83,6 +70,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug
             "-DCMAKE_C_FLAGS=--coverage -O0 -g"
             "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           )
 
           if [ "${USE_CCACHE}" = "1" ]; then
@@ -94,10 +82,21 @@ jobs:
 
           cmake "${CMAKE_ARGS[@]}"
 
-      - name: Build with Build Wrapper
-        run: |
-          build-wrapper-linux-x86-64 --out-dir "${BUILD_WRAPPER_OUT_DIR}" \
-          cmake --build build --clean-first
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: clang-tidy
+        if: ${{ !cancelled() }}
+        uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          database: project/build
+          style: file
+          tidy-checks: ""
+          lines-changed-only: false
+          thread-comments: true
+          ignore: build|tests
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
@@ -108,41 +107,11 @@ jobs:
             --root . \
             --filter src \
             --exclude tests \
-            --sonarqube coverage.xml
+            --xml coverage.xml
 
-      - name: Check generated artifacts
-        run: |
-          test -f "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
-          test -f "coverage.xml"
-
-      - name: SonarQube Scan (PR / develop)
-        if: github.event_name == 'pull_request' || github.ref_name == 'develop'
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          projectBaseDir: project
-          args: >
-            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
-            -Dsonar.sources=src
-            -Dsonar.cfamily.compile-commands=project/bw-output/compile_commands.json
-            -Dsonar.coverageReportPaths=coverage.xml
-            -Dsonar.exclusions=build/**
-
-      - name: SonarQube Scan (main only, wait for QG)
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          projectBaseDir: project
-          args: >
-            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
-            -Dsonar.sources=src
-            -Dsonar.cfamily.compile-commands=project/bw-output/compile_commands.json
-            -Dsonar.coverageReportPaths=coverage.xml
-            -Dsonar.exclusions=build/**
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=300
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./project/coverage.xml
+          fail_ci_if_error: true
