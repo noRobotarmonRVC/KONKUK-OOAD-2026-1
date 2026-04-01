@@ -115,7 +115,7 @@ jobs:
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
             -Dsonar.sources=src
             -Dsonar.tests=tests
-            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+            -Dsonar.cfamily.compile-commands=project/bw-output/compile_commands.json
             -Dsonar.coverageReportPaths=coverage.xml
             -Dsonar.exclusions=build/**
             -Dsonar.qualitygate.wait=true
