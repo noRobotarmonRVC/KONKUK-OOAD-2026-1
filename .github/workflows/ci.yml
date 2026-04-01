@@ -27,6 +27,7 @@ jobs:
     runs-on: [self-hosted, linux]
     permissions:
       pull-requests: write
+      contents: write
 
     defaults:
       run:

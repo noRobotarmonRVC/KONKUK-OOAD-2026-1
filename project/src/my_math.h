@@ -1,4 +1,4 @@
 #pragma once
 
-int add(int a, int b);
-int sub(int a, int b);
+auto add(int lhs, int rhs) -> int;
+auto sub(int lhs, int rhs) -> int;
