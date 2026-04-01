@@ -1,0 +1,33 @@
+# clang-tidy 설정 파일
+# 빌드 시 자동으로 읽혀서 정적 분석 규칙을 적용함
+
+# 활성화할 검사 규칙 목록
+# - 로 시작하면 비활성화, 아무것도 없으면 활성화
+# -*-  먼저 모든 규칙 비활성화한 뒤 필요한 것만 켬
+Checks: >
+  -*,
+  bugprone-*,
+  modernize-use-nullptr,
+  modernize-use-override,
+  readability-braces-around-statements,
+  readability-identifier-naming
+
+# 여기 지정한 규칙을 위반하면 경고가 아니라 에러로 처리 (빌드 실패)
+# 지금은 비워둬서 모두 경고로만 표시
+WarningsAsErrors: ""
+
+# 분석 대상 헤더 파일 범위
+# src/ 안의 헤더만 검사하고 외부 라이브러리 헤더는 무시
+HeaderFilterRegex: "src/.*"
+
+# 네이밍 규칙 설정 (readability-identifier-naming 활성화 시 적용)
+CheckOptions:
+  # 클래스 이름은 대문자로 시작 (PascalCase)
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  # 함수 이름은 소문자로 시작 (camelCase)
+  - key: readability-identifier-naming.FunctionCase
+    value: camelCase
+  # 변수 이름은 소문자로 시작
+  - key: readability-identifier-naming.VariableCase
+    value: camelCase
