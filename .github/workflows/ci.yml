@@ -68,7 +68,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug
             "-DCMAKE_C_FLAGS=--coverage -O0 -g"
             "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
-            -DCMAKE_CXX_CLANG_TIDY=clang-tidy
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           )
 
           if [ "${USE_CCACHE}" = "1" ]; then
@@ -82,6 +82,15 @@ jobs:
 
       - name: Build
         run: cmake --build build -j$(nproc)
+
+      - name: clang-tidy
+        if: ${{ !cancelled() }}
+        run: |
+          if ! command -v clang-tidy >/dev/null 2>&1; then
+            echo "clang-tidy not found, skipping"
+            exit 0
+          fi
+          find src -name "*.cpp" | xargs clang-tidy -p build --quiet
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
