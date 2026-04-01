@@ -31,8 +31,47 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Verify runner prerequisites
+        run: |
+          set -euo pipefail
+
+          echo "== OS =="
+          uname -a
+
+          echo "== Check required commands =="
+          command -v cmake
+          command -v gcc
+          command -v g++
+          command -v gcov
+          command -v python3
+          command -v pip
+          command -v unzip
+          command -v ctest
+
+          if command -v curl >/dev/null 2>&1; then
+            echo "curl found: $(command -v curl)"
+          elif command -v wget >/dev/null 2>&1; then
+            echo "wget found: $(command -v wget)"
+          else
+            echo "ERROR: curl or wget is required."
+            exit 1
+          fi
+
+          echo "== Versions =="
+          cmake --version
+          gcc --version
+          g++ --version
+          gcov --version
+          python3 --version
+          pip --version
+          ctest --version
+          unzip -v | head -n 2
+
       - name: Install gcovr
         run: pip install gcovr
+
+      - name: Verify gcovr
+        run: gcovr --version
 
       - name: Install Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v7
@@ -53,7 +92,17 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
       - name: Generate coverage report
-        run: gcovr --root . --sonarqube coverage.xml
+        run: |
+          gcovr \
+            --root . \
+            --sonarqube coverage.xml
+
+      - name: Check generated artifacts
+        run: |
+          test -f "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
+          test -f "coverage.xml"
+          ls -l "${BUILD_WRAPPER_OUT_DIR}/compile_commands.json"
+          ls -l "coverage.xml"
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
