@@ -110,7 +110,7 @@ jobs:
             --xml coverage.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
-          files: project/coverage.xml
-          fail_ci_if_error: false
+          files: ./project/coverage.xml
+          fail_ci_if_error: true
