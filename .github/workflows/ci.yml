@@ -85,13 +85,14 @@ jobs:
 
       - name: clang-tidy
         if: ${{ !cancelled() }}
-        uses: reviewdog/action-clang-tidy@v1
+        uses: cpp-linter/cpp-linter-action@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clang_tidy_flags: "-p build"
-          reporter: ${{ github.event_name == 'pull_request' && 'github-pr-review' || 'github-check' }}
-          filter_mode: added
-          fail_on_error: false
+          database: project/build
+          style: file
+          tidy-checks: ""
+          lines-changed-only: true
+          thread-comments: true
+          ignore: build|tests
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
