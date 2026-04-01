@@ -25,6 +25,8 @@ concurrency:
 jobs:
   build-test:
     runs-on: [self-hosted, linux]
+    permissions:
+      pull-requests: write
 
     defaults:
       run:
