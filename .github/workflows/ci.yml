@@ -152,4 +152,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./project/coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: true 
