@@ -9,6 +9,7 @@ on:
       - "project/CMakeLists.txt"
       - "project/cmake/**"
       - ".github/workflows/**"
+
   pull_request:
     branches: [ "main", "develop" ]
     paths:
@@ -25,14 +26,24 @@ concurrency:
 jobs:
   build-test:
     runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+
     permissions:
+      contents: read
       pull-requests: write
-      contents: write
+      checks: write
 
     defaults:
       run:
         shell: bash
         working-directory: ./project
+
+    env:
+      BUILD_TYPE: Debug
+
+      # 기본값은 Mock 테스트
+      # main으로 PR 날릴 때만 아래 Decide test mode 단계에서 ON으로 바뀜
+      USE_REAL_DEVICE: OFF
 
     steps:
       - name: Checkout
@@ -59,19 +70,40 @@ jobs:
         with:
           path: ~/.ccache
           key: ${{ runner.os }}-ccache-${{ hashFiles('project/CMakeLists.txt', 'project/src/**', 'project/tests/**') }}
-          restore-keys: ${{ runner.os }}-ccache-
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
       - name: Install gcovr
-        run: python -m pip install --disable-pip-version-check gcovr
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check gcovr
+
+      - name: Clean build directory
+        run: |
+          rm -rf build
+
+      - name: Decide test mode
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            echo "USE_REAL_DEVICE=ON" >> "$GITHUB_ENV"
+            echo "Test mode: real device objects"
+          else
+            echo "USE_REAL_DEVICE=OFF" >> "$GITHUB_ENV"
+            echo "Test mode: mock objects"
+          fi
 
       - name: Configure
         run: |
           CMAKE_ARGS=(
-            -S . -B build
-            -DCMAKE_BUILD_TYPE=Debug
+            -S .
+            -B build
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+            -DUSE_REAL_DEVICE=${USE_REAL_DEVICE}
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_C_COMPILER=gcc
+            -DCMAKE_CXX_COMPILER=g++
             "-DCMAKE_C_FLAGS=--coverage -O0 -g"
             "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           )
 
           if [ "${USE_CCACHE}" = "1" ]; then
@@ -84,7 +116,8 @@ jobs:
           cmake "${CMAKE_ARGS[@]}"
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: |
+          cmake --build build -j"$(nproc)"
 
       - name: clang-tidy
         if: ${{ !cancelled() }}
@@ -97,18 +130,22 @@ jobs:
           tidy-checks: ""
           lines-changed-only: false
           thread-comments: true
-          ignore: build|tests
+          ignore: project/build|project/tests|project/build/_deps
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          ctest --test-dir build --output-on-failure
 
       - name: Generate coverage report
         run: |
           gcovr \
             --root . \
-            --filter src \
-            --exclude tests \
-            --xml coverage.xml
+            --filter 'src/' \
+            --exclude 'tests/' \
+            --exclude 'build/' \
+            --exclude 'src/main.cpp' \
+            --xml \
+            --output coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
