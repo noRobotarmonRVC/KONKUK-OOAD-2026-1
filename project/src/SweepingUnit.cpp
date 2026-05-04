@@ -2,6 +2,10 @@
 
 #include <iostream>
 
+bool SweepingUnit::isOn() const { return is_on; }
+void SweepingUnit::turnOn()     { is_on = true; }
+void SweepingUnit::turnOff()    { is_on = false; }
+
 void SweepingUnit::clean(bool isDustDetected) {
     if (!isOn()) {
         std::cout << "[SweepingUnit] cannot clean: power off\n";

@@ -2,6 +2,10 @@
 
 #include <iostream>
 
+bool DustSensor::isOn() const { return is_on; }
+void DustSensor::turnOn()     { is_on = true; }
+void DustSensor::turnOff()    { is_on = false; }
+
 DustSensor::DustSensor(bool initialDustDetected) {
     is_dust_detected = initialDustDetected;
 }

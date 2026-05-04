@@ -4,17 +4,17 @@
 #include <memory>
 #include <string>
 
+#include "AbstractDriveMotor.hpp"
 #include "DriveController.hpp"
 #include "DriveMotor.hpp"
-#include "IDriveMotor.hpp"
 
 // ============================================================
 // MockDriveMotor
 // gmock 없이 순수 gtest만으로 만든 수동 Mock
 // ============================================================
 
-class MockDriveMotor : public IDriveMotor {
-public:
+class MockDriveMotor : public AbstractDriveMotor {
+   public:
     int moveForwardCallCount = 0;
     int moveBackwardCallCount = 0;
     int stopCallCount = 0;
