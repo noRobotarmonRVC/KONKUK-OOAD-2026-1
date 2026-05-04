@@ -20,7 +20,3 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
 
     return obstacle_info;
 }
-
-void ObstacleSensor::setObstacleInfo(const std::array<int, 4>& obstacleInfo) {
-    obstacle_info = obstacleInfo;
-}

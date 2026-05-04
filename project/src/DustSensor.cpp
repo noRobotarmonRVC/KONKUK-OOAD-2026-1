@@ -17,7 +17,3 @@ bool DustSensor::findDust() {
 
     return is_dust_detected;
 }
-
-void DustSensor::setDustDetected(bool detected) {
-    is_dust_detected = detected;
-}

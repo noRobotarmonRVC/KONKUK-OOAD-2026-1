@@ -7,6 +7,8 @@ class DustSensor : public AbstractDustSensor {
     DustSensor() = default;
     explicit DustSensor(bool is_dust_detected);
 
+    bool isOn() const override;
+    void turnOn() override;
+    void turnOff() override;
     bool findDust() override;
-    void setDustDetected(bool detected);
 };
