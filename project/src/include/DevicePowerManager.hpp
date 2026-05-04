@@ -7,7 +7,7 @@
 
 class DevicePowerManager {
 private:
-    std::array<std::shared_ptr<DeviceComponent>, 3> devices_;
+    std::array<std::shared_ptr<DeviceComponent>, 3> devices;
 
 public:
     explicit DevicePowerManager(

@@ -3,7 +3,7 @@
 #include <iostream>
 
 ObstacleSensor::ObstacleSensor(const std::array<int, 4>& initialObstacleInfo) {
-    obstacleInfo_ = initialObstacleInfo;
+    obstacle_info = initialObstacleInfo;
 }
 
 std::array<int, 4> ObstacleSensor::findObstacle() {
@@ -13,14 +13,14 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
     }
 
     std::cout << "[ObstacleSensor] obstacle info: ["
-              << obstacleInfo_[0] << ", "
-              << obstacleInfo_[1] << ", "
-              << obstacleInfo_[2] << ", "
-              << obstacleInfo_[3] << "]\n";
+              << obstacle_info[0] << ", "
+              << obstacle_info[1] << ", "
+              << obstacle_info[2] << ", "
+              << obstacle_info[3] << "]\n";
 
-    return obstacleInfo_;
+    return obstacle_info;
 }
 
 void ObstacleSensor::setObstacleInfo(const std::array<int, 4>& obstacleInfo) {
-    obstacleInfo_ = obstacleInfo;
+    obstacle_info = obstacleInfo;
 }

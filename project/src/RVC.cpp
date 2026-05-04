@@ -1,51 +1,50 @@
 #include "RVC.hpp"
 
+#include <iostream>
+#include <stdexcept>
+#include <utility>
+
 #include "DriveMotor.hpp"
 #include "DustSensor.hpp"
 #include "ObstacleSensor.hpp"
 #include "SweepingUnit.hpp"
 
-#include <iostream>
-#include <stdexcept>
-#include <utility>
-
 RVC::RVC()
-    : cleaningController_(std::make_unique<CleaningController>(
+    : cleaning_controller(std::make_unique<CleaningController>(
           std::make_shared<DriveMotor>(),
           std::make_shared<SweepingUnit>(),
           std::make_shared<DustSensor>(),
-          std::make_shared<ObstacleSensor>()
-      )) {}
+          std::make_shared<ObstacleSensor>())) {}
 
-RVC::RVC(std::unique_ptr<CleaningController> cleaningController)
-    : cleaningController_(std::move(cleaningController)) {
-    if (!cleaningController_) {
+RVC::RVC(std::shared_ptr<CleaningController> cleaningController)
+    : cleaning_controller(std::move(cleaningController)) {
+    if (!cleaning_controller) {
         throw std::invalid_argument("RVC: cleaningController is null");
     }
 }
 
 void RVC::powerOn() {
-    on_ = true;
+    on = true;
     std::cout << "[RVC] power on\n";
 }
 
 void RVC::powerOff() {
     stopCleaning();
-    on_ = false;
+    on = false;
     std::cout << "[RVC] power off\n";
 }
 
 void RVC::startCleaning() {
-    if (!on_) {
+    if (!on) {
         std::cout << "[RVC] cannot start: power off\n";
         return;
     }
 
-    cleaningController_->run();
+    cleaning_controller->run();
 }
 
 void RVC::stopCleaning() {
-    if (cleaningController_) {
-        cleaningController_->stop();
+    if (cleaning_controller) {
+        cleaning_controller->stop();
     }
 }

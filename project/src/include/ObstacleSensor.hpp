@@ -1,14 +1,14 @@
 #pragma once
 
-#include "AbstractObstacleSensor.hpp"
-
 #include <array>
 
+#include "AbstractObstacleSensor.hpp"
+
 class ObstacleSensor : public AbstractObstacleSensor {
-public:
+   public:
     ObstacleSensor() = default;
-    explicit ObstacleSensor(const std::array<int, 4>& initialObstacleInfo);
+    explicit ObstacleSensor(const std::array<int, 4>& obstacle_info);
 
     std::array<int, 4> findObstacle() override;
-    void setObstacleInfo(const std::array<int, 4>& obstacleInfo);
+    void setObstacleInfo(const std::array<int, 4>& obstacle_info);
 };

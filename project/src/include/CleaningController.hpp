@@ -1,41 +1,39 @@
 #pragma once
 
-#include "DeviceComponent.hpp"
-#include "DevicePowerManager.hpp"
-#include "DriveController.hpp"
-#include "IDriveMotor.hpp"
-#include "IDustSensor.hpp"
-#include "IObstacleSensor.hpp"
-#include "ISweepingUnit.hpp"
-#include "SweepingController.hpp"
-
 #include <array>
 #include <memory>
 
+#include "AbstractCleaningUnit.hpp"
+#include "AbstractDriveMotor.hpp"
+#include "AbstractDustSensor.hpp"
+#include "AbstractObstacleSensor.hpp"
+#include "DeviceComponent.hpp"
+#include "DevicePowerManager.hpp"
+#include "DriveController.hpp"
+#include "SweepingController.hpp"
+
 class CleaningController {
-private:
-    DriveController motorController_;
-    SweepingController cleanerController_;
-    DevicePowerManager deviceController_;
+   private:
+    DriveController motor_controller;
+    SweepingController sweeping_controller;
+    DevicePowerManager device_controller;
 
-    std::shared_ptr<IDustSensor> dustSensor_;
-    std::shared_ptr<IObstacleSensor> obstacleSensor_;
+    std::shared_ptr<AbstractDustSensor> dust_sensor;
+    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor;
 
-    bool isCleaning_ = false;
+    bool is_cleaning = false;
 
     static std::array<std::shared_ptr<DeviceComponent>, 3> makeDeviceArray(
-        const std::shared_ptr<ISweepingUnit>& cleaner,
-        const std::shared_ptr<IDustSensor>& dustSensor,
-        const std::shared_ptr<IObstacleSensor>& obstacleSensor
-    );
+        const std::shared_ptr<AbstractCleaningUnit>& cleaner,
+        const std::shared_ptr<AbstractDustSensor>& dust_sensor,
+        const std::shared_ptr<AbstractObstacleSensor>& obstacle_sensor);
 
-public:
+   public:
     CleaningController(
-        std::shared_ptr<IDriveMotor> motor,
-        std::shared_ptr<ISweepingUnit> cleaner,
-        std::shared_ptr<IDustSensor> dustSensor,
-        std::shared_ptr<IObstacleSensor> obstacleSensor
-    );
+        std::shared_ptr<AbstractDriveMotor> motor,
+        std::shared_ptr<AbstractCleaningUnit> cleaner,
+        std::shared_ptr<AbstractDustSensor> dust_sensor,
+        std::shared_ptr<AbstractObstacleSensor> obstacle_sensor);
 
     void run();
     void stop();

@@ -4,9 +4,9 @@
 #include <stdexcept>
 #include <utility>
 
-DriveController::DriveController(std::shared_ptr<IDriveMotor> motor)
-    : motor_(std::move(motor)) {
-    if (!motor_) {
+DriveController::DriveController(std::shared_ptr<AbstractDriveMotor> motor)
+    : motor(std::move(motor)) {
+    if (!motor) {
         throw std::invalid_argument("DriveController: motor is null");
     }
 }
@@ -23,23 +23,23 @@ void DriveController::avoid(const std::array<int, 4>& obstacleInfo) {
         return;
     }
 
-    motor_->stop();
+    motor->stop();
 
     if (!rightBlocked) {
-        motor_->rotateRight();
+        motor->rotateRight();
     } else if (!leftBlocked) {
-        motor_->rotateLeft();
+        motor->rotateLeft();
     } else if (!backBlocked) {
-        motor_->moveBackward();
+        motor->moveBackward();
     } else {
         std::cout << "[DriveController] all directions blocked\n";
     }
 }
 
 void DriveController::moveForward() {
-    motor_->moveForward();
+    motor->moveForward();
 }
 
 void DriveController::stop() {
-    motor_->stop();
+    motor->stop();
 }

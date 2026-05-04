@@ -1,17 +1,17 @@
 #pragma once
 
-#include "CleaningController.hpp"
-
 #include <memory>
 
-class RVC {
-private:
-    bool on_ = false;
-    std::unique_ptr<CleaningController> cleaningController_;
+#include "CleaningController.hpp"
 
-public:
+class RVC {
+   private:
+    bool on = false;
+    std::shared_ptr<CleaningController> cleaning_controller;
+
+   public:
     RVC();
-    explicit RVC(std::unique_ptr<CleaningController> cleaningController);
+    explicit RVC(std::shared_ptr<CleaningController> cleaning_controller);
 
     void powerOn();
     void powerOff();

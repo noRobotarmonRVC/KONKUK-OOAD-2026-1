@@ -3,7 +3,7 @@
 #include <iostream>
 
 DustSensor::DustSensor(bool initialDustDetected) {
-    isDustDetected_ = initialDustDetected;
+    is_dust_detected = initialDustDetected;
 }
 
 bool DustSensor::findDust() {
@@ -13,11 +13,11 @@ bool DustSensor::findDust() {
     }
 
     std::cout << "[DustSensor] dust detected: "
-              << (isDustDetected_ ? "true" : "false") << '\n';
+              << (is_dust_detected ? "true" : "false") << '\n';
 
-    return isDustDetected_;
+    return is_dust_detected;
 }
 
 void DustSensor::setDustDetected(bool detected) {
-    isDustDetected_ = detected;
+    is_dust_detected = detected;
 }

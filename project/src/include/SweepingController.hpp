@@ -1,18 +1,18 @@
 #pragma once
 
-#include "ISweepingUnit.hpp"
-
 #include <memory>
 
-class SweepingController {
-private:
-    std::shared_ptr<ISweepingUnit> cleaner_;
+#include "AbstractCleaningUnit.hpp"
 
-public:
-    explicit SweepingController(std::shared_ptr<ISweepingUnit> cleaner);
+class SweepingController {
+   private:
+    std::shared_ptr<AbstractCleaningUnit> cleaner;
+
+   public:
+    explicit SweepingController(std::shared_ptr<AbstractCleaningUnit> cleaner);
 
     void turnOn();
     void turnOff();
     bool isOn() const;
-    void clean(bool isDustDetected);
+    void clean(bool is_dust_detected);
 };
