@@ -7,10 +7,9 @@ class AbstractCleaningUnit : public DeviceComponent {
     int power = 0;
 
    public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
-
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
     virtual void clean(bool is_dust_detected) = 0;
     virtual void boostMode() = 0;
     virtual void normalMode() = 0;

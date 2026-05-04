@@ -7,8 +7,8 @@ class AbstractDustSensor : public DeviceComponent {
     bool is_dust_detected = false;
 
    public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
     virtual bool findDust() = 0;
 };

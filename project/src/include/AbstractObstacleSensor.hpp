@@ -9,8 +9,8 @@ class AbstractObstacleSensor : public DeviceComponent {
     std::array<int, 4> obstacle_info = {0, 0, 0, 0};
 
    public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
     virtual std::array<int, 4> findObstacle() = 0;
 };
