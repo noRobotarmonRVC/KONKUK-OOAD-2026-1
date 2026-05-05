@@ -1,5 +1,7 @@
 #include "DriveController.hpp"
 
+#include <unistd.h>
+
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -19,20 +21,21 @@ void DriveController::avoid(const std::array<int, 4>& obstacleInfo) {
     const bool leftBlocked = obstacleInfo[3] != 0;
 
     if (!frontBlocked) {
-        moveForward();
-        return;
+        throw std::invalid_argument("Drivecontroller: front obstacle not handled before");
     }
 
-    motor->stop();
-
-    if (!rightBlocked) {
-        motor->rotateRight();
-    } else if (!leftBlocked) {
+    if (!leftBlocked) {
         motor->rotateLeft();
-    } else if (!backBlocked) {
+    } else if (!rightBlocked) {
+        motor->rotateRight();
+    } else if (rightBlocked && leftBlocked && !backBlocked) {
         motor->moveBackward();
+        // RVC가 뒤로 갈 시간을 기다리기
+        sleep(2);
+        motor->stop();
+        motor->rotateLeft();
     } else {
-        std::cout << "[DriveController] all directions blocked\n";
+        throw std::invalid_argument("DriveController: obstacle in all sides exception not handled");
     }
 }
 
