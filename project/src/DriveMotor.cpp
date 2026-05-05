@@ -5,10 +5,23 @@
 DriveMotor::DriveMotor(SimulatorClient& client) : m_client(&client) {}
 
 void DriveMotor::moveForward() {
-    std::cout << "[DriveMotor] move forward\n";
+    if (m_client) {
+        m_client->sendAsync("MOVE_FORWARD");
+    } else {
+        throw std::invalid_argument("DriveMotor: client connection failed");
+    }
+
+    // 일단 주석 처리, test 필요 시 유지
+    // std::cout << "[DriveMotor] move forward\n";
 }
 
 void DriveMotor::moveBackward() {
+    if (m_client) {
+        m_client->sendAsync("MOVE_BACKWARD");
+    } else {
+        throw std::invalid_argument("DriveMotor: client connection failed");
+    }
+
     std::cout << "[DriveMotor] move backward\n";
 }
 
