@@ -24,22 +24,26 @@ RVC::RVC(std::shared_ptr<CleaningController> cleaningController)
 }
 
 void RVC::powerOn() {
-    on = true;
-    std::cout << "[RVC] power on\n";
+    if(!on){
+        on = true;
+        // std::cout << "[RVC] power on\n";
+        cleaning_controller->turnOnDeviceComponents();
+    }
 }
 
 void RVC::powerOff() {
-    stopCleaning();
-    on = false;
-    std::cout << "[RVC] power off\n";
+    if(on){
+        stopCleaning();
+        on = false;
+        // std::cout << "[RVC] power off\n";
+    }
 }
 
 void RVC::startCleaning() {
     if (!on) {
-        std::cout << "[RVC] cannot start: power off\n";
+        // std::cout << "[RVC] cannot start: power off\n";
         return;
     }
-
     cleaning_controller->run();
 }
 
