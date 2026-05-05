@@ -3,25 +3,25 @@
 #include <stdexcept>
 #include <utility>
 
-SweepingController::SweepingController(std::shared_ptr<ISweepingUnit> cleaner)
-    : cleaner_(std::move(cleaner)) {
-    if (!cleaner_) {
+SweepingController::SweepingController(std::shared_ptr<AbstractCleaningUnit> cleaner)
+    : cleaner(std::move(cleaner)) {
+    if (!cleaner) {
         throw std::invalid_argument("SweepingController: cleaner is null");
     }
 }
 
 void SweepingController::turnOn() {
-    cleaner_->turnOn();
+    cleaner->turnOn();
 }
 
 void SweepingController::turnOff() {
-    cleaner_->turnOff();
+    cleaner->turnOff();
 }
 
 bool SweepingController::isOn() const {
-    return cleaner_->isOn();
+    return cleaner->isOn();
 }
 
 void SweepingController::clean(bool isDustDetected) {
-    cleaner_->clean(isDustDetected);
+    cleaner->clean(isDustDetected);
 }

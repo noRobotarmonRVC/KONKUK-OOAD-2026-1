@@ -1,13 +1,14 @@
 #pragma once
 
-#include "IDustSensor.hpp"
+#include "DeviceComponent.hpp"
 
-class AbstractDustSensor : public IDustSensor {
-protected:
-    bool isDustDetected_ = false;
+class AbstractDustSensor : public DeviceComponent {
+   protected:
+    bool is_dust_detected = false;
 
-public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
+   public:
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
+    virtual bool findDust() = 0;
 };

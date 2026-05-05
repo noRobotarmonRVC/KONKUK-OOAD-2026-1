@@ -3,15 +3,15 @@
 #include <iostream>
 
 bool AbstractDustSensor::isOn() const {
-    return isOn_;
+    return is_on;
 }
 
 void AbstractDustSensor::turnOn() {
-    isOn_ = true;
+    is_on = true;
     std::cout << "[DustSensor] turn on\n";
 }
 
 void AbstractDustSensor::turnOff() {
-    isOn_ = false;
+    is_on = false;
     std::cout << "[DustSensor] turn off\n";
 }

@@ -1,15 +1,16 @@
 #pragma once
 
-#include "IObstacleSensor.hpp"
-
 #include <array>
 
-class AbstractObstacleSensor : public IObstacleSensor {
-protected:
-    std::array<int, 4> obstacleInfo_ = {0, 0, 0, 0};
+#include "DeviceComponent.hpp"
 
-public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
+class AbstractObstacleSensor : public DeviceComponent {
+   protected:
+    std::array<int, 4> obstacle_info = {0, 0, 0, 0};
+
+   public:
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
+    virtual std::array<int, 4> findObstacle() = 0;
 };

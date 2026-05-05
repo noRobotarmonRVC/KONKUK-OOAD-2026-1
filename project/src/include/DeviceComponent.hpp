@@ -1,10 +1,10 @@
 #pragma once
 
 class DeviceComponent {
-protected:
-    bool isOn_ = false;
+   protected:
+    bool is_on = false;
 
-public:
+   public:
     virtual ~DeviceComponent() = default;
 
     virtual bool isOn() const = 0;

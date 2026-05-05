@@ -4,48 +4,48 @@
 #include <utility>
 
 std::array<std::shared_ptr<DeviceComponent>, 3> CleaningController::makeDeviceArray(
-    const std::shared_ptr<ISweepingUnit>& cleaner,
-    const std::shared_ptr<IDustSensor>& dustSensor,
-    const std::shared_ptr<IObstacleSensor>& obstacleSensor
+    const std::shared_ptr<AbstractCleaningUnit>& cleaner,
+    const std::shared_ptr<AbstractDustSensor>& dustSensor,
+    const std::shared_ptr<AbstractObstacleSensor>& obstacleSensor
 ) {
     return {cleaner, dustSensor, obstacleSensor};
 }
 
 CleaningController::CleaningController(
-    std::shared_ptr<IDriveMotor> motor,
-    std::shared_ptr<ISweepingUnit> cleaner,
-    std::shared_ptr<IDustSensor> dustSensor,
-    std::shared_ptr<IObstacleSensor> obstacleSensor
+    std::shared_ptr<AbstractDriveMotor> motor,
+    std::shared_ptr<AbstractCleaningUnit> cleaner,
+    std::shared_ptr<AbstractDustSensor> dustSensor,
+    std::shared_ptr<AbstractObstacleSensor> obstacleSensor
 )
-    : motorController_(std::move(motor)),
-      cleanerController_(cleaner),
-      deviceController_(makeDeviceArray(cleaner, dustSensor, obstacleSensor)),
-      dustSensor_(std::move(dustSensor)),
-      obstacleSensor_(std::move(obstacleSensor)) {
-    if (!dustSensor_ || !obstacleSensor_) {
+    : motor_controller(std::move(motor)),
+      sweeping_controller(cleaner),
+      device_controller(makeDeviceArray(cleaner, dustSensor, obstacleSensor)),
+      dust_sensor(std::move(dustSensor)),
+      obstacle_sensor(std::move(obstacleSensor)) {
+    if (!dust_sensor || !obstacle_sensor) {
         throw std::invalid_argument("CleaningController: sensor is null");
     }
 }
 
 void CleaningController::run() {
-    if (!isCleaning_) {
-        isCleaning_ = true;
-        deviceController_.allTurnOn();
+    if (!is_cleaning) {
+        is_cleaning = true;
+        device_controller.allTurnOn();
     }
 
-    const std::array<int, 4> obstacleInfo = obstacleSensor_->findObstacle();
-    motorController_.avoid(obstacleInfo);
+    const std::array<int, 4> obstacleInfo = obstacle_sensor->findObstacle();
+    motor_controller.avoid(obstacleInfo);
 
-    const bool isDustDetected = dustSensor_->findDust();
-    cleanerController_.clean(isDustDetected);
+    const bool isDustDetected = dust_sensor->findDust();
+    sweeping_controller.clean(isDustDetected);
 }
 
 void CleaningController::stop() {
-    if (!isCleaning_) {
+    if (!is_cleaning) {
         return;
     }
 
-    motorController_.stop();
-    deviceController_.allTurnOff();
-    isCleaning_ = false;
+    motor_controller.stop();
+    device_controller.allTurnOff();
+    is_cleaning = false;
 }

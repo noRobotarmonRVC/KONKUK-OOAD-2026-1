@@ -2,8 +2,12 @@
 
 #include <iostream>
 
+bool ObstacleSensor::isOn() const { return is_on; }
+void ObstacleSensor::turnOn()     { is_on = true; }
+void ObstacleSensor::turnOff()    { is_on = false; }
+
 ObstacleSensor::ObstacleSensor(const std::array<int, 4>& initialObstacleInfo) {
-    obstacleInfo_ = initialObstacleInfo;
+    obstacle_info = initialObstacleInfo;
 }
 
 std::array<int, 4> ObstacleSensor::findObstacle() {
@@ -13,14 +17,10 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
     }
 
     std::cout << "[ObstacleSensor] obstacle info: ["
-              << obstacleInfo_[0] << ", "
-              << obstacleInfo_[1] << ", "
-              << obstacleInfo_[2] << ", "
-              << obstacleInfo_[3] << "]\n";
+              << obstacle_info[0] << ", "
+              << obstacle_info[1] << ", "
+              << obstacle_info[2] << ", "
+              << obstacle_info[3] << "]\n";
 
-    return obstacleInfo_;
-}
-
-void ObstacleSensor::setObstacleInfo(const std::array<int, 4>& obstacleInfo) {
-    obstacleInfo_ = obstacleInfo;
+    return obstacle_info;
 }

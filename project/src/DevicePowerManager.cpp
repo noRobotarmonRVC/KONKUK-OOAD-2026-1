@@ -4,8 +4,8 @@
 
 DevicePowerManager::DevicePowerManager(
     const std::array<std::shared_ptr<DeviceComponent>, 3>& devices
-) : devices_(devices) {
-    for (const auto& device : devices_) {
+) : devices(devices) {
+    for (const auto& device : devices) {
         if (!device) {
             throw std::invalid_argument("DevicePowerManager: device is null");
         }
@@ -13,13 +13,13 @@ DevicePowerManager::DevicePowerManager(
 }
 
 void DevicePowerManager::allTurnOn() {
-    for (const auto& device : devices_) {
+    for (const auto& device : devices) {
         device->turnOn();
     }
 }
 
 void DevicePowerManager::allTurnOff() {
-    for (const auto& device : devices_) {
+    for (const auto& device : devices) {
         device->turnOff();
     }
 }

@@ -3,15 +3,15 @@
 #include <iostream>
 
 bool AbstractObstacleSensor::isOn() const {
-    return isOn_;
+    return is_on;
 }
 
 void AbstractObstacleSensor::turnOn() {
-    isOn_ = true;
+    is_on = true;
     std::cout << "[ObstacleSensor] turn on\n";
 }
 
 void AbstractObstacleSensor::turnOff() {
-    isOn_ = false;
+    is_on = false;
     std::cout << "[ObstacleSensor] turn off\n";
 }

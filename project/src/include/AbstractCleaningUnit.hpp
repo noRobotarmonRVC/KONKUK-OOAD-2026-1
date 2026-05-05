@@ -1,13 +1,16 @@
 #pragma once
 
-#include "ISweepingUnit.hpp"
+#include "DeviceComponent.hpp"
 
-class AbstractCleaningUnit : public ISweepingUnit {
-protected:
-    int power_ = 0;
+class AbstractCleaningUnit : public DeviceComponent {
+   protected:
+    int power = 0;
 
-public:
-    bool isOn() const override;
-    void turnOn() override;
-    void turnOff() override;
+   public:
+    virtual bool isOn() const override = 0;
+    virtual void turnOn() override = 0;
+    virtual void turnOff() override = 0;
+    virtual void clean(bool is_dust_detected) = 0;
+    virtual void boostMode() = 0;
+    virtual void normalMode() = 0;
 };
