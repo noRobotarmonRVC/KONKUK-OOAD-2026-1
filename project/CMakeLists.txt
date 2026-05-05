@@ -72,6 +72,7 @@ foreach(TEST_FILE ${TEST_FILES})
 
     target_link_libraries(${TEST_NAME} PRIVATE
         GTest::gtest_main
+        GTest::gmock
     )
 
     if(USE_REAL_DEVICE)
