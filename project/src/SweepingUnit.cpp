@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+SweepingUnit::SweepingUnit(SimulatorClient& client) : m_client(&client) {}
+
 bool SweepingUnit::isOn() const { return is_on; }
 void SweepingUnit::turnOn()     { is_on = true; }
 void SweepingUnit::turnOff()    { is_on = false; }
