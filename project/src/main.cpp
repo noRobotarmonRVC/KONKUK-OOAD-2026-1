@@ -5,13 +5,16 @@
 #include "DustSensor.hpp"
 #include "ObstacleSensor.hpp"
 #include "RVC.hpp"
+#include "SimulatorClient.hpp"
 #include "SweepingUnit.hpp"
 
 int main() {
-    auto motor = std::make_shared<DriveMotor>();
-    auto cleaner = std::make_shared<SweepingUnit>();
-    auto dustSensor = std::make_shared<DustSensor>();
-    auto obstacleSensor = std::make_shared<ObstacleSensor>();
+    SimulatorClient client("127.0.0.1", 9000);
+
+    auto motor = std::make_shared<DriveMotor>(client);
+    auto cleaner = std::make_shared<SweepingUnit>(client);
+    auto dustSensor = std::make_shared<DustSensor>(client);
+    auto obstacleSensor = std::make_shared<ObstacleSensor>(client);
 
     // dustSensor->setDustDetected(true);
 
