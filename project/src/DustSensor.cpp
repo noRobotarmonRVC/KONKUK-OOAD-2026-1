@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+DustSensor::DustSensor(SimulatorClient& client) : m_client(&client) {}
+
 bool DustSensor::isOn() const { return is_on; }
 void DustSensor::turnOn()     { is_on = true; }
 void DustSensor::turnOff()    { is_on = false; }

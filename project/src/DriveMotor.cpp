@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+DriveMotor::DriveMotor(SimulatorClient& client) : m_client(&client) {}
+
 void DriveMotor::moveForward() {
     std::cout << "[DriveMotor] move forward\n";
 }

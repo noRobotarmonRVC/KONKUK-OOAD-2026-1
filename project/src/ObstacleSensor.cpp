@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+ObstacleSensor::ObstacleSensor(SimulatorClient& client) : m_client(&client) {}
+
 bool ObstacleSensor::isOn() const { return is_on; }
 void ObstacleSensor::turnOn()     { is_on = true; }
 void ObstacleSensor::turnOff()    { is_on = false; }
