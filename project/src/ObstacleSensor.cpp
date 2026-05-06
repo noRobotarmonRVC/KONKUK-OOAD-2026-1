@@ -2,11 +2,12 @@
 
 #include <iostream>
 
-ObstacleSensor::ObstacleSensor(SimulatorClient& client) : m_client(&client) {}
+ObstacleSensor::ObstacleSensor(std::shared_ptr<AbstractNetwork> network)
+    : m_network(std::move(network)) {}
 
 bool ObstacleSensor::isOn() const { return is_on; }
-void ObstacleSensor::turnOn()     { is_on = true; }
-void ObstacleSensor::turnOff()    { is_on = false; }
+void ObstacleSensor::turnOn() { is_on = true; }
+void ObstacleSensor::turnOff() { is_on = false; }
 
 ObstacleSensor::ObstacleSensor(const std::array<int, 4>& initialObstacleInfo) {
     obstacle_info = initialObstacleInfo;
