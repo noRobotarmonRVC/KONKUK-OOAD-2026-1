@@ -2,19 +2,21 @@
 
 #include <memory>
 
-#include "CleaningController.hpp"
+#include "AbstractCleaningController.hpp"
 
 class RVC {
-   private:
+private:
     bool on = false;
-    std::shared_ptr<CleaningController> cleaning_controller;
+    std::shared_ptr<AbstractCleaningController> cleaningController;
 
-   public:
-    RVC();
-    explicit RVC(std::shared_ptr<CleaningController> cleaning_controller);
+public:
+    explicit RVC(std::shared_ptr<AbstractCleaningController> cleaningController);
 
     void powerOn();
     void powerOff();
+
     void startCleaning();
     void stopCleaning();
+
+    bool isOn() const;
 };
