@@ -2,7 +2,8 @@
 
 #include <iostream>
 
-DriveMotor::DriveMotor(SimulatorClient& client) : m_client(&client) {}
+DriveMotor::DriveMotor(std::shared_ptr<AbstractNetwork> network)
+    : m_network(std::move(network)) {}
 
 void DriveMotor::moveForward() {
     std::cout << "[DriveMotor] move forward\n";

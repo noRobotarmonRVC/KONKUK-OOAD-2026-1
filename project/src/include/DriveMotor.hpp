@@ -1,12 +1,14 @@
 #pragma once
 
+#include <memory>
+
 #include "AbstractDriveMotor.hpp"
-#include "SimulatorClient.hpp"
+#include "AbstractNetwork.hpp"
 
 class DriveMotor : public AbstractDriveMotor {
-public:
+   public:
     DriveMotor() = default;
-    explicit DriveMotor(SimulatorClient& client);
+    explicit DriveMotor(std::shared_ptr<AbstractNetwork> network);
 
     void moveForward() override;
     void moveBackward() override;
@@ -14,6 +16,6 @@ public:
     void rotateRight() override;
     void rotateLeft() override;
 
-private:
-    SimulatorClient* m_client = nullptr;
+   private:
+    std::shared_ptr<AbstractNetwork> m_network = nullptr;
 };
