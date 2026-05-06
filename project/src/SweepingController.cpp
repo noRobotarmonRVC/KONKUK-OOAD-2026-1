@@ -5,7 +5,7 @@
 
 SweepingController::SweepingController(std::shared_ptr<AbstractCleaningUnit> cleaner)
     : cleaner(std::move(cleaner)) {
-    if (!cleaner) {
+    if (!this->cleaner) {
         throw std::invalid_argument("SweepingController: cleaner is null");
     }
 }
