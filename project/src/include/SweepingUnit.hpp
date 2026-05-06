@@ -1,12 +1,14 @@
 #pragma once
 
+#include <memory>
+
 #include "AbstractCleaningUnit.hpp"
-#include "SimulatorClient.hpp"
+#include "AbstractNetwork.hpp"
 
 class SweepingUnit : public AbstractCleaningUnit {
    public:
     SweepingUnit() = default;
-    explicit SweepingUnit(SimulatorClient& client);
+    explicit SweepingUnit(std::shared_ptr<AbstractNetwork> network);
 
     bool isOn() const override;
     void turnOn() override;
@@ -16,5 +18,5 @@ class SweepingUnit : public AbstractCleaningUnit {
     void normalMode() override;
 
    private:
-    SimulatorClient* m_client = nullptr;
+    std::shared_ptr<AbstractNetwork> m_network = nullptr;
 };

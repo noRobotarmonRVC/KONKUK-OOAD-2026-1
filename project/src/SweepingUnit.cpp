@@ -2,11 +2,12 @@
 
 #include <iostream>
 
-SweepingUnit::SweepingUnit(SimulatorClient& client) : m_client(&client) {}
+SweepingUnit::SweepingUnit(std::shared_ptr<AbstractNetwork> network)
+    : m_network(std::move(network)) {}
 
 bool SweepingUnit::isOn() const { return is_on; }
-void SweepingUnit::turnOn()     { is_on = true; }
-void SweepingUnit::turnOff()    { is_on = false; }
+void SweepingUnit::turnOn() { is_on = true; }
+void SweepingUnit::turnOff() { is_on = false; }
 
 void SweepingUnit::clean(bool isDustDetected) {
     if (!isOn()) {

@@ -1,8 +1,10 @@
 #include "SimulatorClient.hpp"
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #include <cstring>
 #include <stdexcept>
 
@@ -15,20 +17,25 @@ static int openUdpSocket(int timeoutSec) {
 }
 
 SimulatorClient::SimulatorClient(const std::string& host, int port)
-    : m_host(host), m_port(port)
-{
+    : m_host(host), m_port(port) {
     m_asyncSock = openUdpSocket(1);
-    m_syncSock  = openUdpSocket(2);
-    m_running   = true;
-    m_worker    = std::thread(&SimulatorClient::workerLoop, this);
+    m_syncSock = openUdpSocket(2);
+    m_running = true;
+    m_worker = std::thread(&SimulatorClient::workerLoop, this);
 }
 
 SimulatorClient::~SimulatorClient() {
     m_running = false;
     m_cv.notify_all();
     if (m_worker.joinable()) m_worker.join();
-    if (m_asyncSock >= 0) { close(m_asyncSock); m_asyncSock = -1; }
-    if (m_syncSock  >= 0) { close(m_syncSock);  m_syncSock  = -1; }
+    if (m_asyncSock >= 0) {
+        close(m_asyncSock);
+        m_asyncSock = -1;
+    }
+    if (m_syncSock >= 0) {
+        close(m_syncSock);
+        m_syncSock = -1;
+    }
 }
 
 void SimulatorClient::sendAsync(const std::string& cmd) {
@@ -62,7 +69,7 @@ void SimulatorClient::workerLoop() {
 std::string SimulatorClient::udpRoundTrip(int sockfd, const std::string& cmd) {
     struct sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_port   = htons(static_cast<uint16_t>(m_port));
+    addr.sin_port = htons(static_cast<uint16_t>(m_port));
     inet_pton(AF_INET, m_host.c_str(), &addr.sin_addr);
 
     std::string msg = cmd + "\n";

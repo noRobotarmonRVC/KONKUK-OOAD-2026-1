@@ -1,15 +1,16 @@
 #pragma once
 
 #include <array>
+#include <memory>
 
+#include "AbstractNetwork.hpp"
 #include "AbstractObstacleSensor.hpp"
-#include "SimulatorClient.hpp"
 
 class ObstacleSensor : public AbstractObstacleSensor {
    public:
     ObstacleSensor() = default;
     explicit ObstacleSensor(const std::array<int, 4>& obstacle_info);
-    explicit ObstacleSensor(SimulatorClient& client);
+    explicit ObstacleSensor(std::shared_ptr<AbstractNetwork> network);
 
     bool isOn() const override;
     void turnOn() override;
@@ -17,5 +18,5 @@ class ObstacleSensor : public AbstractObstacleSensor {
     std::array<int, 4> findObstacle() override;
 
    private:
-    SimulatorClient* m_client = nullptr;
+    std::shared_ptr<AbstractNetwork> m_network = nullptr;
 };
