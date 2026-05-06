@@ -33,3 +33,4 @@ cmake_install.cmake
 .vs/
 .vscode/c_cpp_properties.json
 .gitignore
+.idea/
