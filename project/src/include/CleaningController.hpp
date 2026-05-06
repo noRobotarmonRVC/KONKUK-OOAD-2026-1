@@ -37,4 +37,5 @@ class CleaningController {
 
     void run();
     void stop();
+    void turnOnDeviceComponents();
 };

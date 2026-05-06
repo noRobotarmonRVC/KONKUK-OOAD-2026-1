@@ -49,3 +49,7 @@ void CleaningController::stop() {
     device_controller.allTurnOff();
     is_cleaning = false;
 }
+
+void CleaningController::turnOnDeviceComponents() {
+    device_controller.allTurnOn();
+} 
