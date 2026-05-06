@@ -3,16 +3,18 @@
 #include <memory>
 
 #include "AbstractCleaningUnit.hpp"
+#include "AbstractSweepingController.hpp"
 
-class SweepingController {
-   private:
+class SweepingController : public AbstractSweepingController {
+private:
     std::shared_ptr<AbstractCleaningUnit> cleaner;
 
-   public:
+public:
     explicit SweepingController(std::shared_ptr<AbstractCleaningUnit> cleaner);
 
-    void turnOn();
-    void turnOff();
-    bool isOn() const;
-    void clean(bool is_dust_detected);
+    void turnOn() override;
+    void turnOff() override;
+    bool isOn() const override;
+
+    void clean(bool isDustDetected) override;
 };

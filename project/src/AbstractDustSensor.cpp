@@ -8,10 +8,10 @@ bool AbstractDustSensor::isOn() const {
 
 void AbstractDustSensor::turnOn() {
     is_on = true;
-    std::cout << "[DustSensor] turn on\n";
+    // std::cout << "[DustSensor] turn on\n";
 }
 
 void AbstractDustSensor::turnOff() {
     is_on = false;
-    std::cout << "[DustSensor] turn off\n";
+    // std::cout << "[DustSensor] turn off\n";
 }
