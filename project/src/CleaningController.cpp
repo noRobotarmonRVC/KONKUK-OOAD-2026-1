@@ -72,7 +72,7 @@ CleaningController::CleaningController(
 
 
 void CleaningController::run() {
-    if (is_cleaning) {
+    if (!is_cleaning) {
         return;
     }
 
@@ -118,6 +118,9 @@ void CleaningController::run() {
 }
 
 void CleaningController::stop() {
+    if (!is_cleaning) {
+        return;
+    }
     device_controller->allTurnOff();
     is_cleaning = false;
 }
