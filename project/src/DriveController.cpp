@@ -14,11 +14,11 @@ DriveController::DriveController(std::shared_ptr<AbstractDriveMotor> motor)
 }
 
 void DriveController::avoid(const std::array<int, 4>& obstacleInfo) {
-    // index rule: [0] front, [1] right, [2] back, [3] left
+    // index rule: [0] front, [1] left, [2] right, [3] back
     const bool frontBlocked = obstacleInfo[0] != 0;
-    const bool rightBlocked = obstacleInfo[1] != 0;
-    const bool backBlocked = obstacleInfo[2] != 0;
-    const bool leftBlocked = obstacleInfo[3] != 0;
+    const bool leftBlocked = obstacleInfo[1] != 0;
+    const bool rightBlocked = obstacleInfo[2] != 0;
+    const bool backBlocked = obstacleInfo[3] != 0;
 
     if (!frontBlocked) {
         throw std::invalid_argument("Drivecontroller: front obstacle not handled before");
