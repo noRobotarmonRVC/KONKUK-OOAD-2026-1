@@ -14,8 +14,7 @@
 std::array<std::shared_ptr<DeviceComponent>, 3> CleaningController::makeDeviceArray(
     const std::shared_ptr<AbstractCleaningUnit>& cleaner,
     const std::shared_ptr<AbstractDustSensor>& dustSensor,
-    const std::shared_ptr<AbstractObstacleSensor>& obstacleSensor
-) {
+    const std::shared_ptr<AbstractObstacleSensor>& obstacleSensor) {
     return {cleaner, dustSensor, obstacleSensor};
 }
 
@@ -24,17 +23,14 @@ CleaningController::CleaningController(
     std::shared_ptr<AbstractDriveMotor> motor,
     std::shared_ptr<AbstractCleaningUnit> cleaner,
     std::shared_ptr<AbstractDustSensor> dust_sensor,
-    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor
-)
+    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor)
     : CleaningController(
           std::make_shared<DriveController>(motor),
           std::make_shared<SweepingController>(cleaner),
           std::make_shared<DevicePowerManager>(
-              makeDeviceArray(cleaner, dust_sensor, obstacle_sensor)
-          ),
+              makeDeviceArray(cleaner, dust_sensor, obstacle_sensor)),
           dust_sensor,
-          obstacle_sensor
-      ) {}
+          obstacle_sensor) {}
 
 // Unit Test용 생성자
 CleaningController::CleaningController(
@@ -42,8 +38,7 @@ CleaningController::CleaningController(
     std::shared_ptr<AbstractSweepingController> sweeping_controller,
     std::shared_ptr<AbstractDevicePowerManager> device_controller,
     std::shared_ptr<AbstractDustSensor> dust_sensor,
-    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor
-)
+    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor)
     : motor_controller(std::move(motor_controller)),
       sweeping_controller(std::move(sweeping_controller)),
       device_controller(std::move(device_controller)),
@@ -69,7 +64,6 @@ CleaningController::CleaningController(
         throw std::invalid_argument("CleaningController: obstacle_sensor is null");
     }
 }
-
 
 void CleaningController::run() {
     if (!is_cleaning) {
@@ -109,7 +103,7 @@ void CleaningController::run() {
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            }
+        }
 
         sweeping_controller->turnOff();
         motor_controller->stop();
