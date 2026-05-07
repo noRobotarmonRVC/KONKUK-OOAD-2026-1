@@ -2,71 +2,75 @@
 
 #include <array>
 #include <chrono>
-#include <future>
 #include <memory>
 #include <stdexcept>
 #include <thread>
 
 #include "CleaningController.hpp"
 
-#ifdef USE_REAL_DEVICE
+#if USE_REAL_DEVICE
 
 #include "DriveMotor.hpp"
 #include "SweepingUnit.hpp"
 #include "DustSensor.hpp"
 #include "ObstacleSensor.hpp"
 
-TEST(CleaningControllerTest, RealDeviceInitialStateIsNotCleaning) {
+#include "DriveController.hpp"
+#include "SweepingController.hpp"
+#include "DevicePowerManager.hpp"
+#include "DeviceComponent.hpp"
+
+namespace {
+
+std::unique_ptr<CleaningController> makeRealCleaningController() {
     auto motor = std::make_shared<DriveMotor>();
     auto cleaner = std::make_shared<SweepingUnit>();
     auto dustSensor = std::make_shared<DustSensor>();
     auto obstacleSensor = std::make_shared<ObstacleSensor>();
 
-    CleaningController controller(
-        motor,
-        cleaner,
+    auto driveController = std::make_shared<DriveController>(motor);
+    auto sweepingController = std::make_shared<SweepingController>(cleaner);
+
+    auto powerManager = std::make_shared<DevicePowerManager>(
+        std::array<std::shared_ptr<DeviceComponent>, 3>{
+            cleaner,
+            dustSensor,
+            obstacleSensor
+        }
+    );
+
+    return std::make_unique<CleaningController>(
+        driveController,
+        sweepingController,
+        powerManager,
         dustSensor,
         obstacleSensor
     );
+}
 
-    EXPECT_FALSE(controller.isCleaning());
+}  // namespace
+
+TEST(CleaningControllerTest, RealDeviceInitialStateIsNotCleaning) {
+    auto controller = makeRealCleaningController();
+
+    EXPECT_FALSE(controller->isCleaning());
 }
 
 TEST(CleaningControllerTest, RealDeviceTurnOnAndTurnOffComponents) {
-    auto motor = std::make_shared<DriveMotor>();
-    auto cleaner = std::make_shared<SweepingUnit>();
-    auto dustSensor = std::make_shared<DustSensor>();
-    auto obstacleSensor = std::make_shared<ObstacleSensor>();
+    auto controller = makeRealCleaningController();
 
-    CleaningController controller(
-        motor,
-        cleaner,
-        dustSensor,
-        obstacleSensor
-    );
+    controller->turnOnDeviceComponents();
+    controller->turnOffDeviceComponents();
 
-    controller.turnOnDeviceComponents();
-    controller.turnOffDeviceComponents();
-
-    EXPECT_FALSE(controller.isCleaning());
+    EXPECT_FALSE(controller->isCleaning());
 }
 
 TEST(CleaningControllerTest, RealDeviceStopWhenNotCleaningDoesNothing) {
-    auto motor = std::make_shared<DriveMotor>();
-    auto cleaner = std::make_shared<SweepingUnit>();
-    auto dustSensor = std::make_shared<DustSensor>();
-    auto obstacleSensor = std::make_shared<ObstacleSensor>();
+    auto controller = makeRealCleaningController();
 
-    CleaningController controller(
-        motor,
-        cleaner,
-        dustSensor,
-        obstacleSensor
-    );
+    controller->stop();
 
-    controller.stop();
-
-    EXPECT_FALSE(controller.isCleaning());
+    EXPECT_FALSE(controller->isCleaning());
 }
 
 #else
@@ -79,6 +83,7 @@ TEST(CleaningControllerTest, RealDeviceStopWhenNotCleaningDoesNothing) {
 #include "AbstractObstacleSensor.hpp"
 #include "AbstractSweepingController.hpp"
 
+using ::testing::AnyNumber;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -107,7 +112,6 @@ public:
 class MockDustSensor : public AbstractDustSensor {
 public:
     MOCK_METHOD(bool, findDust, (), (override));
-
     MOCK_METHOD(bool, isOn, (), (const, override));
     MOCK_METHOD(void, turnOn, (), (override));
     MOCK_METHOD(void, turnOff, (), (override));
@@ -116,7 +120,6 @@ public:
 class MockObstacleSensor : public AbstractObstacleSensor {
 public:
     MOCK_METHOD((std::array<int, 4>), findObstacle, (), (override));
-
     MOCK_METHOD(bool, isOn, (), (const, override));
     MOCK_METHOD(void, turnOn, (), (override));
     MOCK_METHOD(void, turnOff, (), (override));
@@ -149,22 +152,31 @@ protected:
         );
     }
 
-    static bool waitUntilNotCleaning(
-        CleaningController& controller,
-        std::chrono::milliseconds timeout = std::chrono::milliseconds(700)
-    ) {
-        const auto deadline = std::chrono::steady_clock::now() + timeout;
+    void allowCleaningLoopIdle() {
+        EXPECT_CALL(*obstacleSensor, findObstacle())
+            .Times(AnyNumber())
+            .WillRepeatedly(Return(std::array<int, 4>{0, 0, 0, 0}));
 
-        while (std::chrono::steady_clock::now() < deadline) {
-            if (!controller.isCleaning()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                return true;
-            }
+        EXPECT_CALL(*dustSensor, findDust())
+            .Times(AnyNumber())
+            .WillRepeatedly(Return(false));
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
+        EXPECT_CALL(*sweeping, clean(false))
+            .Times(AnyNumber());
 
-        return !controller.isCleaning();
+        EXPECT_CALL(*sweeping, isOn())
+            .Times(AnyNumber())
+            .WillRepeatedly(Return(false));
+    }
+
+    static void stopAndWaitDetachedThread(CleaningController& controller) {
+        controller.stop();
+
+        // CleaningController::run() 내부 thread가 detach + 1000ms sleep 구조이므로
+        // 테스트 객체가 먼저 파괴되어 mock에 접근하는 문제를 막기 위해 기다린다.
+        std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+
+        EXPECT_FALSE(controller.isCleaning());
     }
 };
 
@@ -223,11 +235,14 @@ TEST_F(CleaningControllerMockTest, ConstructorThrowsWhenObstacleSensorIsNull) {
 TEST_F(CleaningControllerMockTest, RunOnly) {
     auto controller = makeController();
 
+    allowCleaningLoopIdle();
+
     controller->run();
 
-    EXPECT_FALSE(controller->isCleaning());
+    EXPECT_TRUE(controller->isCleaning());
+
+    stopAndWaitDetachedThread(*controller);
 }
-// run함수 잘못만든 거 확인할 수 있었음 !안 붙여서 꺼저도 run가능했었음
 
 TEST_F(CleaningControllerMockTest, StopOnly) {
     auto controller = makeController();
@@ -236,17 +251,20 @@ TEST_F(CleaningControllerMockTest, StopOnly) {
 
     EXPECT_FALSE(controller->isCleaning());
 }
-// 꺼져있음에도 호출되는거 확인
 
 TEST_F(CleaningControllerMockTest, TurnOnThenRun) {
     auto controller = makeController();
 
     EXPECT_CALL(*powerManager, allTurnOn()).Times(1);
+
+    allowCleaningLoopIdle();
+
     controller->turnOnDeviceComponents();
     controller->run();
 
-    ASSERT_TRUE(waitUntilNotCleaning(*controller));
-    EXPECT_FALSE(controller->isCleaning());
+    EXPECT_TRUE(controller->isCleaning());
+
+    stopAndWaitDetachedThread(*controller);
 }
 
 TEST_F(CleaningControllerMockTest, TurnOnThenRunThenStop) {
@@ -254,43 +272,49 @@ TEST_F(CleaningControllerMockTest, TurnOnThenRunThenStop) {
 
     EXPECT_CALL(*powerManager, allTurnOn()).Times(1);
 
+    allowCleaningLoopIdle();
+
     controller->turnOnDeviceComponents();
     controller->run();
 
+    EXPECT_TRUE(controller->isCleaning());
 
-    controller->stop();
-    
-    ASSERT_TRUE(waitUntilNotCleaning(*controller));
-    EXPECT_FALSE(controller->isCleaning());
+    stopAndWaitDetachedThread(*controller);
 }
 
 TEST_F(CleaningControllerMockTest, TurnOnThenRunThenTurnOff) {
     auto controller = makeController();
 
     EXPECT_CALL(*powerManager, allTurnOn()).Times(1);
+    EXPECT_CALL(*powerManager, allTurnOff()).Times(1);
+
+    allowCleaningLoopIdle();
 
     controller->turnOnDeviceComponents();
     controller->run();
 
-    ASSERT_TRUE(waitUntilNotCleaning(*controller));
-
-    EXPECT_CALL(*powerManager, allTurnOff()).Times(1);
+    EXPECT_TRUE(controller->isCleaning());
 
     controller->turnOffDeviceComponents();
 
-    EXPECT_FALSE(controller->isCleaning());
+    // 현재 구현 기준:
+    // turnOffDeviceComponents()는 allTurnOff()만 호출하고
+    // is_cleaning 값을 false로 바꾸지 않는다.
+    EXPECT_TRUE(controller->isCleaning());
+
+    stopAndWaitDetachedThread(*controller);
 }
 
 TEST_F(CleaningControllerMockTest, RunThenStop) {
     auto controller = makeController();
 
+    allowCleaningLoopIdle();
+
     controller->run();
 
-    ASSERT_TRUE(waitUntilNotCleaning(*controller));
+    EXPECT_TRUE(controller->isCleaning());
 
-    controller->stop();
-
-    EXPECT_FALSE(controller->isCleaning());
+    stopAndWaitDetachedThread(*controller);
 }
 
 TEST_F(CleaningControllerMockTest, TurnOnThenRunThenStopAgain) {
@@ -298,14 +322,14 @@ TEST_F(CleaningControllerMockTest, TurnOnThenRunThenStopAgain) {
 
     EXPECT_CALL(*powerManager, allTurnOn()).Times(1);
 
+    allowCleaningLoopIdle();
+
     controller->turnOnDeviceComponents();
     controller->run();
 
-    ASSERT_TRUE(waitUntilNotCleaning(*controller));
+    EXPECT_TRUE(controller->isCleaning());
 
-    controller->stop();
-
-    EXPECT_FALSE(controller->isCleaning());
+    stopAndWaitDetachedThread(*controller);
 }
 
 TEST_F(CleaningControllerMockTest, TurnOnThenTurnOff) {

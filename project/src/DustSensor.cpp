@@ -6,8 +6,12 @@ DustSensor::DustSensor(std::shared_ptr<AbstractNetwork> network)
     : m_network(std::move(network)) {}
 
 bool DustSensor::isOn() const { return is_on; }
-void DustSensor::turnOn() { is_on = true; }
-void DustSensor::turnOff() { is_on = false; }
+void DustSensor::turnOn() { is_on = true; 
+    m_network->request("DUST_SENSOR_ON");
+}
+void DustSensor::turnOff() { is_on = false;
+    m_network->request("DUST_SENSOR_OFF");
+}
 
 DustSensor::DustSensor(bool initialDustDetected) {
     is_dust_detected = initialDustDetected;

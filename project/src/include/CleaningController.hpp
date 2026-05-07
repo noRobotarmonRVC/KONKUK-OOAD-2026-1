@@ -36,13 +36,6 @@ public:
         std::shared_ptr<AbstractDustSensor> dust_sensor,
         std::shared_ptr<AbstractObstacleSensor> obstacle_sensor
     );
-    CleaningController(
-        std::shared_ptr<AbstractDriveMotor> motor,
-        std::shared_ptr<AbstractCleaningUnit> cleaner,
-        std::shared_ptr<AbstractDustSensor> dust_sensor,
-        std::shared_ptr<AbstractObstacleSensor> obstacle_sensor
-    );
-
     void run() override;
     void stop() override;
 

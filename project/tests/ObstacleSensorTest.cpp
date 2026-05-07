@@ -15,7 +15,6 @@ using ::testing::StrictMock;
 class MockNetwork : public AbstractNetwork {
 public:
     MOCK_METHOD(void, connect, (), (override));
-    MOCK_METHOD(void, send, (const std::string& cmd), (override));
     MOCK_METHOD(std::string, request, (const std::string& cmd), (override));
 };
 
@@ -30,6 +29,10 @@ TEST(ObstacleSensorTest, InitialStateIsOff) {
 TEST(ObstacleSensorTest, TurnOnMakesSensorOn) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     ObstacleSensor sensor(network);
 
     sensor.turnOn();
@@ -39,6 +42,14 @@ TEST(ObstacleSensorTest, TurnOnMakesSensorOn) {
 
 TEST(ObstacleSensorTest, TurnOffMakesSensorOff) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
+
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_OFF"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
     ObstacleSensor sensor(network);
 
@@ -79,6 +90,10 @@ TEST_P(ObstacleSensorValidInputTest, ParsesValidObstacleResponseWhenPowerIsOn) {
 
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(1)
         .WillOnce(Return(makeResponse(expected)));
@@ -118,11 +133,16 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnInvalidResponse) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(1)
         .WillOnce(Return("GARBAGE"));
 
     ObstacleSensor sensor(network);
+
     sensor.turnOn();
 
     EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
@@ -131,11 +151,16 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnInvalidResponse) {
 TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnEmptyResponse) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(1)
         .WillOnce(Return(""));
 
     ObstacleSensor sensor(network);
+
     sensor.turnOn();
 
     EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
@@ -144,12 +169,17 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnEmptyResponse) {
 TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(2)
         .WillOnce(Return("OBSTACLE 1 0 0 0"))
         .WillOnce(Return("OBSTACLE 0 0 0 0"));
 
     ObstacleSensor sensor(network);
+
     sensor.turnOn();
 
     EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{1, 0, 0, 0}));
@@ -159,10 +189,19 @@ TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
 TEST(ObstacleSensorTest, TurnOffPreventsObstacleSensorFromQuerying) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_OFF"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
     ObstacleSensor sensor(network);
+
     sensor.turnOn();
     sensor.turnOff();
 
-    // StrictMock이므로 request()가 호출되면 테스트 실패
+    // StrictMock이므로 FIND_OBSTACLE이 호출되면 테스트 실패
     EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
 }

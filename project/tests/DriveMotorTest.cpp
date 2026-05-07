@@ -16,7 +16,6 @@ using ::testing::StrictMock;
 class MockNetwork : public AbstractNetwork {
    public:
     MOCK_METHOD(void, connect, (), (override));
-    MOCK_METHOD(void, send, (const std::string& cmd), (override));
     MOCK_METHOD(std::string, request, (const std::string& cmd), (override));
 };
 
@@ -43,7 +42,7 @@ TEST(DriveMotorTest, MoveForward_SendsMoveForwardCommand) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("MOVE_FORWARD")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("MOVE_FORWARD")).Times(1);
 
     motor.moveForward();
 }
@@ -52,7 +51,7 @@ TEST(DriveMotorTest, MoveBackward_SendsMoveBackwardCommand) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("MOVE_BACKWARD")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("MOVE_BACKWARD")).Times(1);
 
     motor.moveBackward();
 }
@@ -61,7 +60,7 @@ TEST(DriveMotorTest, Stop_SendsStopMotorCommand) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("STOP_MOTOR")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("STOP_MOTOR")).Times(1);
 
     motor.stop();
 }
@@ -70,7 +69,7 @@ TEST(DriveMotorTest, RotateRight_SendsRotateRightCommand) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("ROTATE_RIGHT")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("ROTATE_RIGHT")).Times(1);
 
     motor.rotateRight();
 }
@@ -79,7 +78,7 @@ TEST(DriveMotorTest, RotateLeft_SendsRotateLeftCommand) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("ROTATE_LEFT")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("ROTATE_LEFT")).Times(1);
 
     motor.rotateLeft();
 }
@@ -92,7 +91,7 @@ TEST(DriveMotorTest, MoveForward_CalledMultipleTimes_SendsCommandEachTime) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("MOVE_FORWARD")).Times(3);
+    EXPECT_CALL(*mockNetwork, request("MOVE_FORWARD")).Times(3);
 
     motor.moveForward();
     motor.moveForward();
@@ -107,9 +106,9 @@ TEST(DriveMotorTest, MixedCommands_EachSentExactlyOnce) {
     auto mockNetwork = std::make_shared<StrictMock<MockNetwork>>();
     DriveMotor motor(mockNetwork);
 
-    EXPECT_CALL(*mockNetwork, send("MOVE_FORWARD")).Times(1);
-    EXPECT_CALL(*mockNetwork, send("STOP_MOTOR")).Times(1);
-    EXPECT_CALL(*mockNetwork, send("ROTATE_LEFT")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("MOVE_FORWARD")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("STOP_MOTOR")).Times(1);
+    EXPECT_CALL(*mockNetwork, request("ROTATE_LEFT")).Times(1);
 
     motor.moveForward();
     motor.stop();

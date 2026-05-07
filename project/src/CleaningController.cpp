@@ -18,20 +18,6 @@ std::array<std::shared_ptr<DeviceComponent>, 3> CleaningController::makeDeviceAr
     return {cleaner, dustSensor, obstacleSensor};
 }
 
-// 실제 실행용 생성자
-CleaningController::CleaningController(
-    std::shared_ptr<AbstractDriveMotor> motor,
-    std::shared_ptr<AbstractCleaningUnit> cleaner,
-    std::shared_ptr<AbstractDustSensor> dust_sensor,
-    std::shared_ptr<AbstractObstacleSensor> obstacle_sensor)
-    : CleaningController(
-          std::make_shared<DriveController>(motor),
-          std::make_shared<SweepingController>(cleaner),
-          std::make_shared<DevicePowerManager>(
-              makeDeviceArray(cleaner, dust_sensor, obstacle_sensor)),
-          dust_sensor,
-          obstacle_sensor) {}
-
 // Unit Test용 생성자
 CleaningController::CleaningController(
     std::shared_ptr<AbstractDriveController> motor_controller,
@@ -66,7 +52,7 @@ CleaningController::CleaningController(
 }
 
 void CleaningController::run() {
-    if (!is_cleaning) {
+    if (is_cleaning) {
         return;
     }
 
@@ -104,10 +90,6 @@ void CleaningController::run() {
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
-
-        sweeping_controller->turnOff();
-        motor_controller->stop();
-        dust_sensor->turnOff();
     }).detach();
 }
 
@@ -115,7 +97,6 @@ void CleaningController::stop() {
     if (!is_cleaning) {
         return;
     }
-    device_controller->allTurnOff();
     is_cleaning = false;
 }
 

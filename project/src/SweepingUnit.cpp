@@ -25,14 +25,14 @@ void SweepingUnit::clean(bool is_dust_detected) {
 }
 
 void SweepingUnit::boostMode() {
-    m_network->send("BOOST_MODE");
+    m_network->request("BOOST_MODE");
     power = 2;
     std::cout << "[SweepingUnit] boost mode\n";
 }
 
 
 void SweepingUnit::normalMode() {
-    m_network->send("NORMAL_MODE");
+    m_network->request("NORMAL_MODE");
     power = 1;
     std::cout << "[SweepingUnit] normal mode\n";
 }

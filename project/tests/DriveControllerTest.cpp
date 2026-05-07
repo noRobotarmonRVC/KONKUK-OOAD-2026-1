@@ -52,7 +52,6 @@ class MockNetwork : public AbstractNetwork {
     bool connectCalled = false;
 
     void connect() override { connectCalled = true; }
-    void send(const std::string& cmd) override { sentCommands.push_back(cmd); }
     std::string request(const std::string& cmd) override { return ""; }
 };
 
