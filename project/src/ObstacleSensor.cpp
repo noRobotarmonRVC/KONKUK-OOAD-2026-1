@@ -14,6 +14,7 @@ ObstacleSensor::ObstacleSensor(const std::array<int, 4>& initialObstacleInfo) {
 }
 
 std::array<int, 4> ObstacleSensor::findObstacle() {
+    std::cout << "[ObstacleSensor] findObstacle called\n";
     if (!isOn()) {
         // std::cout << "[ObstacleSensor] cannot find obstacle: power off\n";
         return {0, 0, 0, 0};
@@ -33,6 +34,7 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
     int right = 0;
     int back = 0;
     int left = 0;
+    std::cout << "[ObstacleSensor] Network response: " << response << std::endl;
 
     if (!(iss >> prefix >> front >> right >> back >> left)) {
         return {0, 0, 0, 0};
@@ -46,6 +48,12 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
     obstacle_info[1] = right ? 1 : 0;
     obstacle_info[2] = back ? 1 : 0;
     obstacle_info[3] = left ? 1 : 0;
+    
+    std::cout << "[ObstacleSensor] obstacle info: ["
+              << obstacle_info[0] << ", "
+              << obstacle_info[1] << ", "
+              << obstacle_info[2] << ", "
+              << obstacle_info[3] << "]\n";
 
     return obstacle_info;
 }

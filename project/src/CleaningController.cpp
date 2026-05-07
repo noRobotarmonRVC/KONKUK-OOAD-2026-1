@@ -66,7 +66,7 @@ CleaningController::CleaningController(
 }
 
 void CleaningController::run() {
-    if (!is_cleaning) {
+    if (is_cleaning) {
         return;
     }
 
