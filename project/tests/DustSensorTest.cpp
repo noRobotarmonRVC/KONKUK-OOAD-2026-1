@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "AbstractNetwork.hpp"
 #include "DustSensor.hpp"
@@ -72,33 +73,32 @@ TEST(DustSensorTest, FindDustRequestsNetworkWhenPowerIsOn) {
     EXPECT_TRUE(result);
 }
 
-TEST(DustSensorTest, FindDustReturnsTrueWhenNetworkReturnsDustOne) {
+class DustSensorValidInputTest
+    : public ::testing::TestWithParam<std::pair<std::string, bool>> {};
+
+TEST_P(DustSensorValidInputTest, ReturnsCorrectResultWhenPowerIsOn) {
+    auto [response, expected] = GetParam();
+
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
     EXPECT_CALL(*network, request("FIND_DUST"))
         .Times(1)
-        .WillOnce(Return("DUST 1"));
+        .WillOnce(Return(response));
 
     DustSensor sensor(network);
-
     sensor.turnOn();
 
-    EXPECT_TRUE(sensor.findDust());
+    EXPECT_EQ(sensor.findDust(), expected);
 }
 
-TEST(DustSensorTest, FindDustReturnsFalseWhenNetworkReturnsDustZero) {
-    auto network = std::make_shared<StrictMock<MockNetwork>>();
-
-    EXPECT_CALL(*network, request("FIND_DUST"))
-        .Times(1)
-        .WillOnce(Return("DUST 0"));
-
-    DustSensor sensor(network);
-
-    sensor.turnOn();
-
-    EXPECT_FALSE(sensor.findDust());
-}
+INSTANTIATE_TEST_SUITE_P(
+    AllValidDustInputs,
+    DustSensorValidInputTest,
+    ::testing::Values(
+        std::make_pair(std::string("DUST 0"), false),
+        std::make_pair(std::string("DUST 1"), true)
+    )
+);
 
 TEST(DustSensorTest, FindDustReturnsFalseForUnexpectedResponse) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
