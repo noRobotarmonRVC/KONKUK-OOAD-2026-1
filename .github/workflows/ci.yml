@@ -25,11 +25,48 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  BUILD_TYPE: Debug
+
 jobs:
-  build-test:
-    name: Build, Test, Lint, Coverage
+  build:
+    name: 1. Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+
+      - name: Configure
+        run: |
+          rm -rf build
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DUSE_REAL_DEVICE=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++
+
+      - name: Build
+        run: |
+          cmake --build build -j"$(nproc)"
+
+  clang-tidy:
+    name: 2. clang-tidy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
 
     permissions:
       contents: write
@@ -41,135 +78,26 @@ jobs:
         shell: bash
         working-directory: ./project
 
-    env:
-      BUILD_TYPE: Debug
-      USE_REAL_DEVICE: OFF
-
     steps:
-      # ============================================================
-      # 1. Checkout & Runtime setup
-      # ============================================================
-
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ netcat-openbsd
+          sudo apt-get install -y cmake g++
 
-      - name: Install Python tools
-        run: |
-          python -m pip install --disable-pip-version-check --upgrade pip
-          python -m pip install --disable-pip-version-check gcovr
-
-      # ============================================================
-      # 2. Cache
-      # ============================================================
-
-      - name: Detect ccache
-        run: |
-          if command -v ccache >/dev/null 2>&1; then
-            echo "USE_CCACHE=1" >> "$GITHUB_ENV"
-          else
-            echo "USE_CCACHE=0" >> "$GITHUB_ENV"
-          fi
-
-      - name: Cache ccache
-        if: env.USE_CCACHE == '1'
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ hashFiles('project/CMakeLists.txt', 'project/src/**', 'project/server/**', 'project/tests/**') }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
-
-      # ============================================================
-      # 3. Decide test mode
-      # ============================================================
-
-      - name: Decide test mode
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
-            echo "USE_REAL_DEVICE=ON" >> "$GITHUB_ENV"
-            echo "Test mode: real device objects"
-          else
-            echo "USE_REAL_DEVICE=OFF" >> "$GITHUB_ENV"
-            echo "Test mode: mock objects"
-          fi
-
-      # ============================================================
-      # 4. Configure & Build
-      # ============================================================
-
-      - name: Clean build directory
+      - name: Configure
         run: |
           rm -rf build
-
-      - name: Configure CMake
-        run: |
-          CMAKE_ARGS=(
-            -S .
-            -B build
-            -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
-            -DUSE_REAL_DEVICE=${USE_REAL_DEVICE}
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-            -DCMAKE_C_COMPILER=gcc
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DUSE_REAL_DEVICE=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++
-            "-DCMAKE_C_FLAGS=--coverage -O0 -g"
-            "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
-          )
-
-          if [ "${USE_CCACHE}" = "1" ]; then
-            CMAKE_ARGS+=(
-              -DCMAKE_C_COMPILER_LAUNCHER=ccache
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            )
-          fi
-
-          cmake "${CMAKE_ARGS[@]}"
-
-      - name: Build
-        run: |
-          cmake --build build -j"$(nproc)"
-
-      # ============================================================
-      # 5. Start TCP server for real-device tests
-      # ============================================================
-
-      - name: Start TCP server
-        if: env.USE_REAL_DEVICE == 'ON'
-        run: |
-          nohup ./build/rvc_server > server.log 2>&1 &
-          echo $! > server.pid
-
-          for i in {1..10}; do
-            if nc -z 127.0.0.1 9000; then
-              echo "TCP server is ready on 127.0.0.1:9000"
-              exit 0
-            fi
-
-            echo "Waiting for TCP server... ($i/10)"
-            sleep 1
-          done
-
-          echo "TCP server failed to start"
-          cat server.log || true
-          exit 1
-
-      # ============================================================
-      # 6. Static analysis
-      # ============================================================
 
       - name: clang-tidy
-        if: ${{ !cancelled() }}
         uses: cpp-linter/cpp-linter-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -181,20 +109,102 @@ jobs:
           thread-comments: true
           ignore: project/build|project/tests|project/build/_deps
 
-      # ============================================================
-      # 7. Test
-      # ============================================================
+  mock-test:
+    name: 3. Mock Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
 
-      - name: Run tests
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+
+      - name: Configure
+        run: |
+          rm -rf build
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DUSE_REAL_DEVICE=OFF \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++
+
+      - name: Build
+        run: |
+          cmake --build build -j"$(nproc)"
+
+      - name: Run mock tests
         run: |
           ctest --test-dir build --output-on-failure
 
-      # ============================================================
-      # 8. Stop TCP server
-      # ============================================================
+  real-device-test:
+    name: 4. Real Device Tests with TCP Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ netcat-openbsd
+
+      - name: Configure
+        run: |
+          rm -rf build
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DUSE_REAL_DEVICE=ON \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++
+
+      - name: Build
+        run: |
+          cmake --build build -j"$(nproc)"
+
+      - name: Start TCP server
+        run: |
+          nohup ./build/rvc_server > server.log 2>&1 &
+          echo $! > server.pid
+
+          for i in {1..10}; do
+            if nc -z 127.0.0.1 9000; then
+              echo "TCP server is ready"
+              exit 0
+            fi
+            echo "Waiting for TCP server... ($i/10)"
+            sleep 1
+          done
+
+          echo "TCP server failed to start"
+          cat server.log || true
+          exit 1
+
+      - name: Run real-device tests
+        run: |
+          ctest --test-dir build --output-on-failure
 
       - name: Stop TCP server
-        if: always() && env.USE_REAL_DEVICE == 'ON'
+        if: always()
         run: |
           if [ -f server.pid ]; then
             kill "$(cat server.pid)" || true
@@ -203,9 +213,51 @@ jobs:
           echo "===== TCP Server Log ====="
           cat server.log || true
 
-      # ============================================================
-      # 9. Coverage
-      # ============================================================
+  coverage:
+    name: 5. Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: mock-test
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check gcovr
+
+      - name: Configure with coverage
+        run: |
+          rm -rf build
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUSE_REAL_DEVICE=OFF \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            "-DCMAKE_C_FLAGS=--coverage -O0 -g" \
+            "-DCMAKE_CXX_FLAGS=--coverage -O0 -g"
+
+      - name: Build
+        run: |
+          cmake --build build -j"$(nproc)"
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build --output-on-failure
 
       - name: Generate coverage report
         run: |
