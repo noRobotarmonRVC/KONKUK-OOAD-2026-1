@@ -8,7 +8,7 @@
 
 DriveController::DriveController(std::shared_ptr<AbstractDriveMotor> motor)
     : motor(std::move(motor)) {
-    if (!motor) {
+    if (!this->motor) {
         throw std::invalid_argument("DriveController: motor is null");
     }
 }
