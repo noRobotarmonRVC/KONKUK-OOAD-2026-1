@@ -5,9 +5,12 @@
 ObstacleSensor::ObstacleSensor(std::shared_ptr<AbstractNetwork> network)
     : m_network(std::move(network)) {}
 
-bool ObstacleSensor::isOn() const { return is_on; }
-void ObstacleSensor::turnOn() { is_on = true; }
-void ObstacleSensor::turnOff() { is_on = false; }
+bool ObstacleSensor::isOn() const { return is_on; 
+}
+void ObstacleSensor::turnOn() { is_on = true; 
+ m_network->request("OBSTACLE_SENSOR_ON");}
+void ObstacleSensor::turnOff() { is_on = false; 
+ m_network->request("OBSTACLE_SENSOR_OFF");}
 
 ObstacleSensor::ObstacleSensor(const std::array<int, 4>& initialObstacleInfo) {
     obstacle_info = initialObstacleInfo;
@@ -25,7 +28,6 @@ std::array<int, 4> ObstacleSensor::findObstacle() {
     //           << obstacle_info[1] << ", "
     //           << obstacle_info[2] << ", "
     //           << obstacle_info[3] << "]\n";
-
     std::string response = m_network->request("FIND_OBSTACLE");
     std::istringstream iss(response);
 

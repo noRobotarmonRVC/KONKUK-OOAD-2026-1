@@ -14,7 +14,6 @@ using ::testing::StrictMock;
 class MockNetwork : public AbstractNetwork {
    public:
     MOCK_METHOD(void, connect, (), (override));
-    MOCK_METHOD(void, send, (const std::string& cmd), (override));
     MOCK_METHOD(std::string, request, (const std::string& cmd), (override));
 };
 
@@ -50,7 +49,6 @@ TEST(SweepingUnitTest, CleanDoesNothingWhenOff) {
 
     SweepingUnit unit(network);
 
-    // StrictMock이므로 send()가 호출되면 테스트 실패
     unit.clean(true);
     unit.clean(false);
 }
@@ -58,7 +56,7 @@ TEST(SweepingUnitTest, CleanDoesNothingWhenOff) {
 TEST(SweepingUnitTest, CleanWithDustSendsBoostMode) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_CALL(*network, send("BOOST_MODE")).Times(1);
+    EXPECT_CALL(*network, request("BOOST_MODE")).Times(1);
 
     SweepingUnit unit(network);
     unit.turnOn();
@@ -68,7 +66,7 @@ TEST(SweepingUnitTest, CleanWithDustSendsBoostMode) {
 TEST(SweepingUnitTest, CleanWithoutDustSendsNormalMode) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_CALL(*network, send("NORMAL_MODE")).Times(1);
+    EXPECT_CALL(*network, request("NORMAL_MODE")).Times(1);
 
     SweepingUnit unit(network);
     unit.turnOn();
@@ -78,7 +76,7 @@ TEST(SweepingUnitTest, CleanWithoutDustSendsNormalMode) {
 TEST(SweepingUnitTest, BoostModeDirectlySendsBoostMode) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_CALL(*network, send("BOOST_MODE")).Times(1);
+    EXPECT_CALL(*network, request("BOOST_MODE")).Times(1);
 
     SweepingUnit unit(network);
     unit.boostMode();
@@ -87,7 +85,7 @@ TEST(SweepingUnitTest, BoostModeDirectlySendsBoostMode) {
 TEST(SweepingUnitTest, NormalModeDirectlySendsNormalMode) {
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_CALL(*network, send("NORMAL_MODE")).Times(1);
+    EXPECT_CALL(*network, request("NORMAL_MODE")).Times(1);
 
     SweepingUnit unit(network);
     unit.normalMode();
@@ -98,8 +96,8 @@ TEST(SweepingUnitTest, CleanSwitchesFromBoostToNormal) {
 
     {
         InSequence seq;
-        EXPECT_CALL(*network, send("BOOST_MODE")).Times(1);
-        EXPECT_CALL(*network, send("NORMAL_MODE")).Times(1);
+        EXPECT_CALL(*network, request("BOOST_MODE")).Times(1);
+        EXPECT_CALL(*network, request("NORMAL_MODE")).Times(1);
     }
 
     SweepingUnit unit(network);
@@ -115,7 +113,6 @@ TEST(SweepingUnitTest, TurnOffPreventsCleanFromSendingCommands) {
     unit.turnOn();
     unit.turnOff();
 
-    // StrictMock이므로 send()가 호출되면 테스트 실패
     unit.clean(true);
     unit.clean(false);
 }

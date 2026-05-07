@@ -7,7 +7,7 @@ DriveMotor::DriveMotor(std::shared_ptr<AbstractNetwork> network)
 
 void DriveMotor::moveForward() {
     if (m_network) {
-        m_network->send("MOVE_FORWARD");
+        m_network->request("MOVE_FORWARD");
     }
 
     // 일단 주석 처리, test 필요 시 유지
@@ -16,7 +16,7 @@ void DriveMotor::moveForward() {
 
 void DriveMotor::moveBackward() {
     if (m_network) {
-        m_network->send("MOVE_BACKWARD");
+        m_network->request("MOVE_BACKWARD");
     }
 
     // std::cout << "[DriveMotor] move backward\n";
@@ -24,7 +24,7 @@ void DriveMotor::moveBackward() {
 
 void DriveMotor::stop() {
     if (m_network) {
-        m_network->send("STOP_MOTOR");
+        m_network->request("STOP_MOTOR");
     }
 
     // std::cout << "[DriveMotor] stop\n";
@@ -32,7 +32,7 @@ void DriveMotor::stop() {
 
 void DriveMotor::rotateRight() {
     if (m_network) {
-        m_network->send("ROTATE_RIGHT");
+        m_network->request("ROTATE_RIGHT");
     }
 
     // std::cout << "[DriveMotor] rotate right\n";
@@ -40,7 +40,7 @@ void DriveMotor::rotateRight() {
 
 void DriveMotor::rotateLeft() {
     if (m_network) {
-        m_network->send("ROTATE_LEFT");
+        m_network->request("ROTATE_LEFT");
     }
 
     // std::cout << "[DriveMotor] rotate left\n";

@@ -9,7 +9,6 @@ class TCPNetwork : public AbstractNetwork {
     TCPNetwork(const std::string& host, int port);
     ~TCPNetwork();
     void connect() override;
-    void send(const std::string& cmd) override;
     std::string request(const std::string& cmd) override;
 
    private:

@@ -10,10 +10,13 @@
 #include "AbstractNetwork.hpp"
 #include "CleaningController.hpp"
 #include "DriveMotor.hpp"
+#include "DriveController.hpp"
 #include "DustSensor.hpp"
 #include "ObstacleSensor.hpp"
 #include "RVC.hpp"
 #include "SweepingUnit.hpp"
+#include "SweepingController.hpp"
+#include "DevicePowerManager.hpp"
 #include "TCPNetwork.hpp"
 
 bool hasInput() {
@@ -31,18 +34,29 @@ bool hasInput() {
 int main() {
     auto network = std::make_shared<TCPNetwork>("127.0.0.1", 9000);
 
-    auto motor = std::make_shared<DriveMotor>(network);
-    auto cleaner = std::make_shared<SweepingUnit>(network);
+    auto driveMotor = std::make_shared<DriveMotor>(network);
+    auto cleaningUnit = std::make_shared<SweepingUnit>(network);
     auto dustSensor = std::make_shared<DustSensor>(network);
     auto obstacleSensor = std::make_shared<ObstacleSensor>(network);
 
+    auto driveController = std::make_shared<DriveController>(driveMotor);
+    auto sweepingController = std::make_shared<SweepingController>(cleaningUnit);
+
+    auto devicePowerManager = std::make_shared<DevicePowerManager>(
+        std::array<std::shared_ptr<DeviceComponent>, 3>{
+            cleaningUnit,
+            dustSensor,
+            obstacleSensor
+        }
+    );
+
     auto cleaningController = std::make_unique<CleaningController>(
-        motor,
-        cleaner,
+        driveController,
+        sweepingController,
+        devicePowerManager,
         dustSensor,
         obstacleSensor
     );
-
 
     RVC rvc(std::move(cleaningController));
 

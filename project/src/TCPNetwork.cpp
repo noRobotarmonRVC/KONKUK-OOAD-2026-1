@@ -3,56 +3,92 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
+
+#include <cstdint>
 #include <stdexcept>
+#include <string>
 
 TCPNetwork::TCPNetwork(const std::string& host, int port)
-    : m_host(host), m_port(port)
-{
+    : m_host(host), m_port(port) {
     connect();
 }
 
 TCPNetwork::~TCPNetwork() {
-    if (m_sock >= 0) { close(m_sock); m_sock = -1; }
+    if (m_sock >= 0) {
+        close(m_sock);
+        m_sock = -1;
+    }
 }
 
 void TCPNetwork::connect() {
     m_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (m_sock < 0) throw std::runtime_error("socket() failed");
+    if (m_sock < 0) {
+        throw std::runtime_error("socket() failed");
+    }
 
-    struct timeval tv{5, 0};
+    timeval tv{5, 0};
     setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    struct sockaddr_in addr{};
+    sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_port   = htons(static_cast<uint16_t>(m_port));
-    inet_pton(AF_INET, m_host.c_str(), &addr.sin_addr);
+    addr.sin_port = htons(static_cast<uint16_t>(m_port));
 
-    if (::connect(m_sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+    if (inet_pton(AF_INET, m_host.c_str(), &addr.sin_addr) <= 0) {
+        close(m_sock);
+        m_sock = -1;
+        throw std::runtime_error("inet_pton() failed");
+    }
+
+    if (::connect(m_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         close(m_sock);
         m_sock = -1;
         throw std::runtime_error("connect() failed");
     }
 }
 
-void TCPNetwork::send(const std::string& cmd) {
-    std::string msg = cmd + "\n";
-    ::send(m_sock, msg.c_str(), msg.size(), 0);
-    char buf[64];
-    recv(m_sock, buf, sizeof(buf) - 1, 0);
-}
-
 std::string TCPNetwork::request(const std::string& cmd) {
+    if (m_sock < 0) {
+        throw std::runtime_error("socket is not connected");
+    }
+
     std::string msg = cmd + "\n";
-    ::send(m_sock, msg.c_str(), msg.size(), 0);
 
-    char buf[256];
-    ssize_t n = recv(m_sock, buf, sizeof(buf) - 1, 0);
-    if (n <= 0) return "";
+    size_t sent = 0;
+    while (sent < msg.size()) {
+        ssize_t n = ::send(
+            m_sock,
+            msg.c_str() + sent,
+            msg.size() - sent,
+            0
+        );
 
-    buf[n] = '\0';
-    std::string resp(buf, n);
-    while (!resp.empty() && (resp.back() == '\n' || resp.back() == '\r'))
-        resp.pop_back();
+        if (n <= 0) {
+            throw std::runtime_error("send() failed");
+        }
+
+        sent += static_cast<size_t>(n);
+    }
+
+    std::string resp;
+    char ch;
+
+    while (true) {
+        ssize_t n = recv(m_sock, &ch, 1, 0);
+
+        if (n <= 0) {
+            return "";
+        }
+
+        if (ch == '\n') {
+            break;
+        }
+
+        if (ch != '\r') {
+            resp.push_back(ch);
+        }
+    }
+
     return resp;
 }

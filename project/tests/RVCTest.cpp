@@ -4,6 +4,10 @@
 #include <stdexcept>
 
 #include "RVC.hpp"
+#include "DriveController.hpp"
+#include "SweepingController.hpp"
+#include "DevicePowerManager.hpp"
+#include "TCPNetwork.hpp"
 
 #ifdef USE_REAL_DEVICE
 
@@ -14,14 +18,28 @@
 #include "ObstacleSensor.hpp"
 
 TEST(RVCTest, RealDevicePowerOnAndPowerOff) {
-    auto motor = std::make_shared<DriveMotor>();
-    auto cleaner = std::make_shared<SweepingUnit>();
-    auto dustSensor = std::make_shared<DustSensor>();
-    auto obstacleSensor = std::make_shared<ObstacleSensor>();
+    auto network = std::make_shared<TCPNetwork>("127.0.0.1", 9000);
+
+    auto motor = std::make_shared<DriveMotor>(network);
+    auto cleaner = std::make_shared<SweepingUnit>(network);
+    auto dustSensor = std::make_shared<DustSensor>(network);
+    auto obstacleSensor = std::make_shared<ObstacleSensor>(network);
+
+    auto driveController = std::make_shared<DriveController>(motor);
+    auto sweepingController = std::make_shared<SweepingController>(cleaner);
+
+    auto devicePowerManager = std::make_shared<DevicePowerManager>(
+        std::array<std::shared_ptr<DeviceComponent>, 3>{
+            cleaner,
+            dustSensor,
+            obstacleSensor
+        }
+    );
 
     auto cleaningController = std::make_shared<CleaningController>(
-        motor,
-        cleaner,
+        driveController,
+        sweepingController,
+        devicePowerManager,
         dustSensor,
         obstacleSensor
     );
