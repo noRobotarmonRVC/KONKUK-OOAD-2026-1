@@ -5,6 +5,7 @@ on:
     branches: [ "main", "develop" ]
     paths:
       - "project/src/**"
+      - "project/server/**"
       - "project/tests/**"
       - "project/CMakeLists.txt"
       - "project/cmake/**"
@@ -14,6 +15,7 @@ on:
     branches: [ "main", "develop" ]
     paths:
       - "project/src/**"
+      - "project/server/**"
       - "project/tests/**"
       - "project/CMakeLists.txt"
       - "project/cmake/**"
@@ -25,6 +27,7 @@ concurrency:
 
 jobs:
   build-test:
+    name: Build, Test, Lint, Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -40,13 +43,14 @@ jobs:
 
     env:
       BUILD_TYPE: Debug
-
-      # 기본값은 Mock 테스트
-      # main으로 PR 날릴 때만 아래 Decide test mode 단계에서 ON으로 바뀜
       USE_REAL_DEVICE: OFF
 
     steps:
-      - name: Checkout
+      # ============================================================
+      # 1. Checkout & Runtime setup
+      # ============================================================
+
+      - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
@@ -55,6 +59,20 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ netcat-openbsd
+
+      - name: Install Python tools
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check gcovr
+
+      # ============================================================
+      # 2. Cache
+      # ============================================================
 
       - name: Detect ccache
         run: |
@@ -69,18 +87,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ hashFiles('project/CMakeLists.txt', 'project/src/**', 'project/tests/**') }}
+          key: ${{ runner.os }}-ccache-${{ hashFiles('project/CMakeLists.txt', 'project/src/**', 'project/server/**', 'project/tests/**') }}
           restore-keys: |
             ${{ runner.os }}-ccache-
 
-      - name: Install gcovr
-        run: |
-          python -m pip install --disable-pip-version-check --upgrade pip
-          python -m pip install --disable-pip-version-check gcovr
-
-      - name: Clean build directory
-        run: |
-          rm -rf build
+      # ============================================================
+      # 3. Decide test mode
+      # ============================================================
 
       - name: Decide test mode
         run: |
@@ -92,7 +105,15 @@ jobs:
             echo "Test mode: mock objects"
           fi
 
-      - name: Configure
+      # ============================================================
+      # 4. Configure & Build
+      # ============================================================
+
+      - name: Clean build directory
+        run: |
+          rm -rf build
+
+      - name: Configure CMake
         run: |
           CMAKE_ARGS=(
             -S .
@@ -119,6 +140,34 @@ jobs:
         run: |
           cmake --build build -j"$(nproc)"
 
+      # ============================================================
+      # 5. Start TCP server for real-device tests
+      # ============================================================
+
+      - name: Start TCP server
+        if: env.USE_REAL_DEVICE == 'ON'
+        run: |
+          nohup ./build/rvc_server > server.log 2>&1 &
+          echo $! > server.pid
+
+          for i in {1..10}; do
+            if nc -z 127.0.0.1 9000; then
+              echo "TCP server is ready on 127.0.0.1:9000"
+              exit 0
+            fi
+
+            echo "Waiting for TCP server... ($i/10)"
+            sleep 1
+          done
+
+          echo "TCP server failed to start"
+          cat server.log || true
+          exit 1
+
+      # ============================================================
+      # 6. Static analysis
+      # ============================================================
+
       - name: clang-tidy
         if: ${{ !cancelled() }}
         uses: cpp-linter/cpp-linter-action@v2
@@ -132,9 +181,31 @@ jobs:
           thread-comments: true
           ignore: project/build|project/tests|project/build/_deps
 
-      - name: Test
+      # ============================================================
+      # 7. Test
+      # ============================================================
+
+      - name: Run tests
         run: |
           ctest --test-dir build --output-on-failure
+
+      # ============================================================
+      # 8. Stop TCP server
+      # ============================================================
+
+      - name: Stop TCP server
+        if: always() && env.USE_REAL_DEVICE == 'ON'
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" || true
+          fi
+
+          echo "===== TCP Server Log ====="
+          cat server.log || true
+
+      # ============================================================
+      # 9. Coverage
+      # ============================================================
 
       - name: Generate coverage report
         run: |
@@ -152,4 +223,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./project/coverage.xml
-          fail_ci_if_error: true 
+          fail_ci_if_error: true
