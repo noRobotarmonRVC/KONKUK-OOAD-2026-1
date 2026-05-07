@@ -6,13 +6,14 @@
 #include <vector>
 
 #include "AbstractDriveMotor.hpp"
+#include "AbstractNetwork.hpp"
 #include "DriveController.hpp"
 #include "DriveMotor.hpp"
 
-// ============================================================
-// MockDriveMotor
-// gmock 없이 순수 gtest만으로 만든 수동 Mock
 // index rule: [0]=front, [1]=left, [2]=right, [3]=back
+
+// ============================================================
+// MockDriveMotor — DriveController 단위 테스트용
 // ============================================================
 
 class MockDriveMotor : public AbstractDriveMotor {
@@ -41,7 +42,23 @@ class OrderTrackingMockDriveMotor : public AbstractDriveMotor {
 };
 
 // ============================================================
-// 로컬 테스트: Mock 객체 사용
+// MockNetwork — DriveMotor CI 테스트용
+// 실제 소켓 없이 전송된 커맨드를 캡처
+// ============================================================
+
+class MockNetwork : public AbstractNetwork {
+   public:
+    std::vector<std::string> sentCommands;
+    bool connectCalled = false;
+
+    void connect() override { connectCalled = true; }
+    void send(const std::string& cmd) override { sentCommands.push_back(cmd); }
+    std::string request(const std::string& cmd) override { return ""; }
+};
+
+// ============================================================
+// 로컬 테스트: MockDriveMotor 사용 (DriveController 단위 테스트)
+// USE_REAL_DEVICE 미정의 시 사용
 // ============================================================
 
 #ifndef USE_REAL_DEVICE
@@ -58,7 +75,6 @@ TEST(DriveControllerTest, Avoid_FrontNotBlocked_ThrowsInvalidArgument) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
 
-    // front=0이면 장애물이 없는 상태로 호출된 것 → 예외
     EXPECT_THROW(ctrl.avoid({0, 0, 0, 0}), std::invalid_argument);
     EXPECT_THROW(ctrl.avoid({0, 1, 1, 1}), std::invalid_argument);
 
@@ -82,7 +98,6 @@ TEST(DriveControllerTest, Avoid_AllSidesBlocked_ThrowsInvalidArgument) {
 
 // --- avoid: 정상 케이스 ---
 
-// front 막힘, left 열림 → rotateLeft
 TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RotatesLeft) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
@@ -96,7 +111,6 @@ TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RotatesLeft) {
     EXPECT_EQ(motor->stopCallCount, 0);
 }
 
-// front·left 막힘, left 열림 → rotateLeft (right·back 무관)
 TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RightAndBackBlocked_RotatesLeft) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
@@ -109,7 +123,6 @@ TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RightAndBackBlocked_Rotate
     EXPECT_EQ(motor->stopCallCount, 0);
 }
 
-// front·left 막힘, right 열림 → rotateRight
 TEST(DriveControllerTest, Avoid_FrontLeftBlocked_RightOpen_RotatesRight) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
@@ -123,7 +136,6 @@ TEST(DriveControllerTest, Avoid_FrontLeftBlocked_RightOpen_RotatesRight) {
     EXPECT_EQ(motor->stopCallCount, 0);
 }
 
-// front·left 막힘, right 열림 (back 막힘) → rotateRight
 TEST(DriveControllerTest, Avoid_FrontLeftBackBlocked_RightOpen_RotatesRight) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
@@ -136,7 +148,6 @@ TEST(DriveControllerTest, Avoid_FrontLeftBackBlocked_RightOpen_RotatesRight) {
     EXPECT_EQ(motor->stopCallCount, 0);
 }
 
-// front·left·right 막힘, back 열림 → moveBackward + stop + rotateLeft
 TEST(DriveControllerTest, Avoid_FrontLeftRightBlocked_BackOpen_MovesBackThenRotatesLeft) {
     auto motor = std::make_shared<MockDriveMotor>();
     DriveController ctrl(motor);
@@ -150,7 +161,6 @@ TEST(DriveControllerTest, Avoid_FrontLeftRightBlocked_BackOpen_MovesBackThenRota
     EXPECT_EQ(motor->moveForwardCallCount, 0);
 }
 
-// front·left·right 막힘, back 열림 → 호출 순서 보장
 TEST(DriveControllerTest, Avoid_FrontLeftRightBlocked_BackOpen_CallOrderIsCorrect) {
     auto motor = std::make_shared<OrderTrackingMockDriveMotor>();
     DriveController ctrl(motor);
@@ -217,36 +227,93 @@ TEST(DriveControllerTest, Avoid_AfterThrow_ControllerStillUsable) {
 #else
 
 // ============================================================
-// 서버 / CI 테스트: 실제 DriveMotor 사용
-// USE_REAL_DEVICE가 정의되면 이 테스트가 사용됨
+// CI 통합 테스트: MockNetwork + DriveMotor 사용
+// DriveController → DriveMotor → Network 전 체인 검증
+// USE_REAL_DEVICE 정의 시 사용 (실제 소켓 연결 불필요)
 // ============================================================
 
-// front 막힘, left 열림 → rotateLeft
-TEST(DriveControllerIntegrationTest, Avoid_FrontBlocked_LeftOpen_UsesRealMotor) {
-    auto realMotor = std::make_shared<DriveMotor>();
-    DriveController controller(realMotor);
+// front 막힘, left 열림 → ROTATE_LEFT 커맨드 전송
+TEST(DriveControllerCITest, Avoid_FrontBlocked_LeftOpen_SendsRotateLeft) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
 
-    std::array<int, 4> obstacleInfo = {1, 0, 0, 0};
+    ctrl.avoid({1, 0, 0, 0});
 
-    testing::internal::CaptureStdout();
-    controller.avoid(obstacleInfo);
-    std::string output = testing::internal::GetCapturedStdout();
-
-    EXPECT_NE(output.find("rotate left"), std::string::npos);
+    ASSERT_EQ(network->sentCommands.size(), 1u);
+    EXPECT_EQ(network->sentCommands[0], "ROTATE_LEFT");
 }
 
-// front·left 막힘, right 열림 → rotateRight
-TEST(DriveControllerIntegrationTest, Avoid_FrontLeftBlocked_RightOpen_UsesRealMotor) {
-    auto realMotor = std::make_shared<DriveMotor>();
-    DriveController controller(realMotor);
+// front·left 막힘, right 열림 → ROTATE_RIGHT 커맨드 전송
+TEST(DriveControllerCITest, Avoid_FrontLeftBlocked_RightOpen_SendsRotateRight) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
 
-    std::array<int, 4> obstacleInfo = {1, 1, 0, 0};
+    ctrl.avoid({1, 1, 0, 0});
 
-    testing::internal::CaptureStdout();
-    controller.avoid(obstacleInfo);
-    std::string output = testing::internal::GetCapturedStdout();
+    ASSERT_EQ(network->sentCommands.size(), 1u);
+    EXPECT_EQ(network->sentCommands[0], "ROTATE_RIGHT");
+}
 
-    EXPECT_NE(output.find("rotate right"), std::string::npos);
+// front·left·right 막힘, back 열림 → MOVE_BACKWARD, STOP_MOTOR, ROTATE_LEFT 순서로 전송
+TEST(DriveControllerCITest, Avoid_FrontLeftRightBlocked_BackOpen_SendsCorrectSequence) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
+
+    ctrl.avoid({1, 1, 1, 0});
+
+    ASSERT_EQ(network->sentCommands.size(), 3u);
+    EXPECT_EQ(network->sentCommands[0], "MOVE_BACKWARD");
+    EXPECT_EQ(network->sentCommands[1], "STOP_MOTOR");
+    EXPECT_EQ(network->sentCommands[2], "ROTATE_LEFT");
+}
+
+// front 미차단 → 예외, 네트워크 커맨드 없음
+TEST(DriveControllerCITest, Avoid_FrontNotBlocked_ThrowsAndSendsNothing) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
+
+    EXPECT_THROW(ctrl.avoid({0, 0, 0, 0}), std::invalid_argument);
+
+    EXPECT_TRUE(network->sentCommands.empty());
+}
+
+// 사방 막힘 → 예외, 네트워크 커맨드 없음
+TEST(DriveControllerCITest, Avoid_AllSidesBlocked_ThrowsAndSendsNothing) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
+
+    EXPECT_THROW(ctrl.avoid({1, 1, 1, 1}), std::invalid_argument);
+
+    EXPECT_TRUE(network->sentCommands.empty());
+}
+
+// moveForward → MOVE_FORWARD 커맨드 전송
+TEST(DriveControllerCITest, MoveForward_SendsMoveForwardCommand) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
+
+    ctrl.moveForward();
+
+    ASSERT_EQ(network->sentCommands.size(), 1u);
+    EXPECT_EQ(network->sentCommands[0], "MOVE_FORWARD");
+}
+
+// stop → STOP_MOTOR 커맨드 전송
+TEST(DriveControllerCITest, Stop_SendsStopMotorCommand) {
+    auto network = std::make_shared<MockNetwork>();
+    auto motor = std::make_shared<DriveMotor>(network);
+    DriveController ctrl(motor);
+
+    ctrl.stop();
+
+    ASSERT_EQ(network->sentCommands.size(), 1u);
+    EXPECT_EQ(network->sentCommands[0], "STOP_MOTOR");
 }
 
 #endif
