@@ -26,7 +26,9 @@ int main() {
         motor,
         cleaner,
         dustSensor,
-        obstacleSensor);
+        obstacleSensor
+    );
+
 
     RVC rvc(std::move(cleaningController));
 
