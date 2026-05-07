@@ -9,13 +9,13 @@ bool SweepingUnit::isOn() const { return is_on; }
 void SweepingUnit::turnOn() { is_on = true; }
 void SweepingUnit::turnOff() { is_on = false; }
 
-void SweepingUnit::clean(bool isDustDetected) {
+void SweepingUnit::clean(bool is_dust_detected) {
     if (!isOn()) {
         std::cout << "[SweepingUnit] cannot clean: power off\n";
         return;
     }
 
-    if (isDustDetected) {
+    if (is_dust_detected) {
         boostMode();
     } else {
         normalMode();
@@ -25,11 +25,14 @@ void SweepingUnit::clean(bool isDustDetected) {
 }
 
 void SweepingUnit::boostMode() {
-    power = 100;
+    m_network->send("BOOST_MODE");
+    power = 2;
     std::cout << "[SweepingUnit] boost mode\n";
 }
 
+
 void SweepingUnit::normalMode() {
-    power = 50;
+    m_network->send("NORMAL_MODE");
+    power = 1;
     std::cout << "[SweepingUnit] normal mode\n";
 }
