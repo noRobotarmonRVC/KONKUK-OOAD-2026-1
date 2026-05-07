@@ -52,23 +52,32 @@ target_include_directories(rvc PRIVATE
 # ============================================================
 
 enable_testing()
-
-add_executable(DriveControllerTest
-    tests/DriveControllerTest.cpp
-    ${PROJECT_SOURCES}
-)
-
-target_include_directories(DriveControllerTest PRIVATE
-    src/include
-)
-
-target_link_libraries(DriveControllerTest PRIVATE
-    GTest::gtest_main
-)
-
-if(USE_REAL_DEVICE)
-    target_compile_definitions(DriveControllerTest PRIVATE USE_REAL_DEVICE)
-endif()
-
 include(GoogleTest)
-gtest_discover_tests(DriveControllerTest)
+
+file(GLOB TEST_FILES CONFIGURE_DEPENDS
+    tests/*.cpp
+)
+
+foreach(TEST_FILE ${TEST_FILES})
+    get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
+
+    add_executable(${TEST_NAME}
+        ${TEST_FILE}
+        ${PROJECT_SOURCES}
+    )
+
+    target_include_directories(${TEST_NAME} PRIVATE
+        src/include
+    )
+
+    target_link_libraries(${TEST_NAME} PRIVATE
+        GTest::gtest_main
+        GTest::gmock
+    )
+
+    if(USE_REAL_DEVICE)
+        target_compile_definitions(${TEST_NAME} PRIVATE USE_REAL_DEVICE)
+    endif()
+
+    gtest_discover_tests(${TEST_NAME})
+endforeach()

@@ -1,22 +1,21 @@
-#pragma once
-
 #include <array>
 #include <memory>
 
+#include "AbstractCleaningController.hpp"
 #include "AbstractCleaningUnit.hpp"
+#include "AbstractDevicePowerManager.hpp"
+#include "AbstractDriveController.hpp"
 #include "AbstractDriveMotor.hpp"
 #include "AbstractDustSensor.hpp"
 #include "AbstractObstacleSensor.hpp"
+#include "AbstractSweepingController.hpp"
 #include "DeviceComponent.hpp"
-#include "DevicePowerManager.hpp"
-#include "DriveController.hpp"
-#include "SweepingController.hpp"
 
-class CleaningController {
-   private:
-    DriveController motor_controller;
-    SweepingController sweeping_controller;
-    DevicePowerManager device_controller;
+class CleaningController : public AbstractCleaningController {
+private:
+    std::shared_ptr<AbstractDriveController> motor_controller;
+    std::shared_ptr<AbstractSweepingController> sweeping_controller;
+    std::shared_ptr<AbstractDevicePowerManager> device_controller;
 
     std::shared_ptr<AbstractDustSensor> dust_sensor;
     std::shared_ptr<AbstractObstacleSensor> obstacle_sensor;
@@ -26,15 +25,22 @@ class CleaningController {
     static std::array<std::shared_ptr<DeviceComponent>, 3> makeDeviceArray(
         const std::shared_ptr<AbstractCleaningUnit>& cleaner,
         const std::shared_ptr<AbstractDustSensor>& dust_sensor,
-        const std::shared_ptr<AbstractObstacleSensor>& obstacle_sensor);
+        const std::shared_ptr<AbstractObstacleSensor>& obstacle_sensor
+    );
 
-   public:
+public:
     CleaningController(
-        std::shared_ptr<AbstractDriveMotor> motor,
-        std::shared_ptr<AbstractCleaningUnit> cleaner,
+        std::shared_ptr<AbstractDriveController> motor_controller,
+        std::shared_ptr<AbstractSweepingController> sweeping_controller,
+        std::shared_ptr<AbstractDevicePowerManager> device_controller,
         std::shared_ptr<AbstractDustSensor> dust_sensor,
-        std::shared_ptr<AbstractObstacleSensor> obstacle_sensor);
+        std::shared_ptr<AbstractObstacleSensor> obstacle_sensor
+    );
+    void run() override;
+    void stop() override;
 
-    void run();
-    void stop();
+    void turnOnDeviceComponents() override;
+    void turnOffDeviceComponents() override;
+
+    bool isCleaning() const override;
 };

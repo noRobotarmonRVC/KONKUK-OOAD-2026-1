@@ -2,24 +2,46 @@
 
 #include <iostream>
 
-DriveMotor::DriveMotor(SimulatorClient& client) : m_client(&client) {}
+DriveMotor::DriveMotor(std::shared_ptr<AbstractNetwork> network)
+    : m_network(std::move(network)) {}
 
 void DriveMotor::moveForward() {
-    std::cout << "[DriveMotor] move forward\n";
+    if (m_network) {
+        m_network->request("MOVE_FORWARD");
+    }
+
+    // 일단 주석 처리, test 필요 시 유지
+    // std::cout << "[DriveMotor] move forward\n";
 }
 
 void DriveMotor::moveBackward() {
-    std::cout << "[DriveMotor] move backward\n";
+    if (m_network) {
+        m_network->request("MOVE_BACKWARD");
+    }
+
+    // std::cout << "[DriveMotor] move backward\n";
 }
 
 void DriveMotor::stop() {
-    std::cout << "[DriveMotor] stop\n";
+    if (m_network) {
+        m_network->request("STOP_MOTOR");
+    }
+
+    // std::cout << "[DriveMotor] stop\n";
 }
 
 void DriveMotor::rotateRight() {
-    std::cout << "[DriveMotor] rotate right\n";
+    if (m_network) {
+        m_network->request("ROTATE_RIGHT");
+    }
+
+    // std::cout << "[DriveMotor] rotate right\n";
 }
 
 void DriveMotor::rotateLeft() {
-    std::cout << "[DriveMotor] rotate left\n";
+    if (m_network) {
+        m_network->request("ROTATE_LEFT");
+    }
+
+    // std::cout << "[DriveMotor] rotate left\n";
 }
