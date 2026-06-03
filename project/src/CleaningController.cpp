@@ -60,21 +60,15 @@ void CleaningController::run() {
 
     std::thread([this]() {
         while (is_cleaning) {
-            std::array<int, 4> obstacleInfo = obstacle_sensor->findObstacle();
+            std::array<int, 2> obstacleInfo = obstacle_sensor->findObstacle();
 
             if (obstacleInfo[0]) {
                 sweeping_controller->turnOff();
                 motor_controller->stop();
 
-                if (obstacleInfo[0] &&
-                    obstacleInfo[1] &&
-                    obstacleInfo[2] &&
-                    obstacleInfo[3]) {
-                    stop();
-                    return;
+                if(motor_controller->avoid(obstacleInfo, 0)){
+                    motor_controller->avoid(obstacleInfo, 1);
                 }
-
-                motor_controller->avoid(obstacleInfo);
                 sweeping_controller->turnOn();
             }
 

@@ -13,7 +13,7 @@ private:
 public:
     explicit DriveController(std::shared_ptr<AbstractDriveMotor> motor);
 
-    void avoid(const std::array<int, 4>& obstacleInfo) override;
+    bool avoid(const std::array<int, 2>& obstacleInfo, int flag) override;
     void moveForward() override;
     void stop() override;
 };
