@@ -67,6 +67,7 @@ void CleaningController::run() {
                 motor_controller->stop();
 
                 if(motor_controller->avoid(obstacleInfo, 0)){
+                    obstacleInfo = obstacle_sensor->findObstacle();
                     motor_controller->avoid(obstacleInfo, 1);
                 }
                 sweeping_controller->turnOn();

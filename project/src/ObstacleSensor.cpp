@@ -36,7 +36,7 @@ std::array<int, 2> ObstacleSensor::findObstacle() {
     int left = 0;
     std::cout << "[ObstacleSensor] Network response: " << response << std::endl;
 
-    if (!(iss >> prefix >> front >> right >> back >> left)) {
+    if (!(iss >> prefix >> front >> left >> back >> right)) {
         return {0, 0};
     }
 
