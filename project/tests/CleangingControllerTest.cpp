@@ -19,14 +19,17 @@
 #include "SweepingController.hpp"
 #include "DevicePowerManager.hpp"
 #include "DeviceComponent.hpp"
+#include "TCPNetwork.hpp"
 
 namespace {
 
 std::unique_ptr<CleaningController> makeRealCleaningController() {
-    auto motor = std::make_shared<DriveMotor>();
-    auto cleaner = std::make_shared<SweepingUnit>();
-    auto dustSensor = std::make_shared<DustSensor>();
-    auto obstacleSensor = std::make_shared<ObstacleSensor>();
+    auto network = std::make_shared<TCPNetwork>();
+
+    auto motor = std::make_shared<DriveMotor>(network);
+    auto cleaner = std::make_shared<SweepingUnit>(network);
+    auto dustSensor = std::make_shared<DustSensor>(network);
+    auto obstacleSensor = std::make_shared<ObstacleSensor>(network);
 
     auto driveController = std::make_shared<DriveController>(motor);
     auto sweepingController = std::make_shared<SweepingController>(cleaner);
@@ -172,8 +175,6 @@ protected:
     static void stopAndWaitDetachedThread(CleaningController& controller) {
         controller.stop();
 
-        // CleaningController::run() 내부 thread가 detach + 1000ms sleep 구조이므로
-        // 테스트 객체가 먼저 파괴되어 mock에 접근하는 문제를 막기 위해 기다린다.
         std::this_thread::sleep_for(std::chrono::milliseconds(1200));
 
         EXPECT_FALSE(controller.isCleaning());
@@ -297,9 +298,6 @@ TEST_F(CleaningControllerMockTest, TurnOnThenRunThenTurnOff) {
 
     controller->turnOffDeviceComponents();
 
-    // 현재 구현 기준:
-    // turnOffDeviceComponents()는 allTurnOff()만 호출하고
-    // is_cleaning 값을 false로 바꾸지 않는다.
     EXPECT_TRUE(controller->isCleaning());
 
     stopAndWaitDetachedThread(*controller);
