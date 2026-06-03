@@ -45,6 +45,9 @@ private:
     }
 
     void cleanCurrentCell() {
+        if (map[pos.y][pos.x] == '.') {
+            map[pos.y][pos.x] = ' ';
+        }
     }
 
     Position nextPosition(Direction d) const {
