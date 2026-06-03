@@ -90,7 +90,7 @@ using ::testing::StrictMock;
 
 class MockDriveController : public AbstractDriveController {
 public:
-    MOCK_METHOD(void, avoid, ((const std::array<int, 4>&)), (override));
+    MOCK_METHOD(bool, avoid, ((const std::array<int, 2>&), int), (override));
     MOCK_METHOD(void, moveForward, (), (override));
     MOCK_METHOD(void, stop, (), (override));
 };
@@ -119,7 +119,7 @@ public:
 
 class MockObstacleSensor : public AbstractObstacleSensor {
 public:
-    MOCK_METHOD((std::array<int, 4>), findObstacle, (), (override));
+    MOCK_METHOD((std::array<int, 2>), findObstacle, (), (override));
     MOCK_METHOD(bool, isOn, (), (const, override));
     MOCK_METHOD(void, turnOn, (), (override));
     MOCK_METHOD(void, turnOff, (), (override));
@@ -155,7 +155,7 @@ protected:
     void allowCleaningLoopIdle() {
         EXPECT_CALL(*obstacleSensor, findObstacle())
             .Times(AnyNumber())
-            .WillRepeatedly(Return(std::array<int, 4>{0, 0, 0, 0}));
+            .WillRepeatedly(Return(std::array<int, 2>{0, 0}));
 
         EXPECT_CALL(*dustSensor, findDust())
             .Times(AnyNumber())

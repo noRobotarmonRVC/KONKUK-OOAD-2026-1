@@ -13,7 +13,7 @@ DriveController::DriveController(std::shared_ptr<AbstractDriveMotor> motor)
     }
 }
 
-int DriveController::avoid(const std::array<int, 2>& obstacleInfo,int flag) {
+bool DriveController::avoid(const std::array<int, 2>& obstacleInfo,int flag) {
     // index rule: [0] front, [1] left, [2] right, [3] back
     const bool frontBlocked = obstacleInfo[0] != 0;
     const bool leftBlocked = obstacleInfo[1] != 0;
@@ -28,14 +28,12 @@ int DriveController::avoid(const std::array<int, 2>& obstacleInfo,int flag) {
             return 1;
         }
     }
-    else{
-        if(frontBlocked==1){
-            motor -> rotateLeft();
-            motor -> moveForward();
-            motor -> rotateLeft();
-            return 0;
-        }
+    if(frontBlocked==1){
+        motor -> rotateLeft();
+        motor -> moveForward();
+        motor -> rotateLeft();
     }
+    return 0;
 }
 
 void DriveController::moveForward() {

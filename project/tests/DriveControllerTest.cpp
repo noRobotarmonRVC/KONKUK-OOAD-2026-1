@@ -1,318 +1,199 @@
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <array>
 #include <memory>
+#include <sstream>
 #include <string>
-#include <vector>
 
-#include "AbstractDriveMotor.hpp"
 #include "AbstractNetwork.hpp"
-#include "DriveController.hpp"
-#include "DriveMotor.hpp"
+#include "ObstacleSensor.hpp"
 
-// index rule: [0]=front, [1]=left, [2]=right, [3]=back
-
-// ============================================================
-// MockDriveMotor — DriveController 단위 테스트용
-// ============================================================
-
-class MockDriveMotor : public AbstractDriveMotor {
-   public:
-    int moveForwardCallCount = 0;
-    int moveBackwardCallCount = 0;
-    int stopCallCount = 0;
-    int rotateRightCallCount = 0;
-    int rotateLeftCallCount = 0;
-
-    void moveForward() override { moveForwardCallCount++; }
-    void moveBackward() override { moveBackwardCallCount++; }
-    void stop() override { stopCallCount++; }
-    void rotateRight() override { rotateRightCallCount++; }
-    void rotateLeft() override { rotateLeftCallCount++; }
-};
-
-class OrderTrackingMockDriveMotor : public AbstractDriveMotor {
-   public:
-    std::vector<std::string> callOrder;
-    void moveForward() override { callOrder.push_back("moveForward"); }
-    void moveBackward() override { callOrder.push_back("moveBackward"); }
-    void stop() override { callOrder.push_back("stop"); }
-    void rotateRight() override { callOrder.push_back("rotateRight"); }
-    void rotateLeft() override { callOrder.push_back("rotateLeft"); }
-};
-
-// ============================================================
-// MockNetwork — DriveMotor CI 테스트용
-// 실제 소켓 없이 전송된 커맨드를 캡처
-// ============================================================
+using ::testing::Return;
+using ::testing::StrictMock;
 
 class MockNetwork : public AbstractNetwork {
-   public:
-    std::vector<std::string> sentCommands;
-    bool connectCalled = false;
-
-    void connect() override { connectCalled = true; }
-    std::string request(const std::string& cmd) override { return ""; }
+public:
+    MOCK_METHOD(void, connect, (), (override));
+    MOCK_METHOD(std::string, request, (const std::string& cmd), (override));
 };
 
-// ============================================================
-// 로컬 테스트: MockDriveMotor 사용 (DriveController 단위 테스트)
-// USE_REAL_DEVICE 미정의 시 사용
-// ============================================================
+TEST(ObstacleSensorTest, InitialStateIsOff) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-#ifndef USE_REAL_DEVICE
+    ObstacleSensor sensor(network);
 
-// --- 생성자 ---
-
-TEST(DriveControllerTest, Constructor_NullMotor_ThrowsInvalidArgument) {
-    EXPECT_THROW(DriveController(nullptr), std::invalid_argument);
+    EXPECT_FALSE(sensor.isOn());
 }
 
-// --- avoid: 예외 케이스 ---
+TEST(ObstacleSensorTest, TurnOnMakesSensorOn) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-TEST(DriveControllerTest, Avoid_FrontNotBlocked_ThrowsInvalidArgument) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
-    EXPECT_THROW(ctrl.avoid({0, 0, 0, 0}), std::invalid_argument);
-    EXPECT_THROW(ctrl.avoid({0, 1, 1, 1}), std::invalid_argument);
+    ObstacleSensor sensor(network);
 
-    EXPECT_EQ(motor->moveForwardCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-    EXPECT_EQ(motor->stopCallCount, 0);
+    sensor.turnOn();
+
+    EXPECT_TRUE(sensor.isOn());
 }
 
-TEST(DriveControllerTest, Avoid_AllSidesBlocked_ThrowsInvalidArgument) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+TEST(ObstacleSensorTest, TurnOffMakesSensorOff) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_THROW(ctrl.avoid({1, 1, 1, 1}), std::invalid_argument);
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_OFF"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+    sensor.turnOff();
+
+    EXPECT_FALSE(sensor.isOn());
 }
 
-// --- avoid: 정상 케이스 ---
+TEST(ObstacleSensorTest, FindObstacleReturnsZerosWhenPowerIsOff) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RotatesLeft) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+    ObstacleSensor sensor(network);
 
-    ctrl.avoid({1, 0, 0, 0});
+    std::array<int, 2> result = sensor.findObstacle();
 
-    EXPECT_EQ(motor->rotateLeftCallCount, 1);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-    EXPECT_EQ(motor->moveForwardCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->stopCallCount, 0);
+    EXPECT_EQ(result, (std::array<int, 2>{0, 0}));
 }
 
-TEST(DriveControllerTest, Avoid_FrontBlocked_LeftOpen_RightAndBackBlocked_RotatesLeft) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+// network response rule: OBSTACLE front right back left
+// return rule: [0] front, [1] left
+class ObstacleSensorValidInputTest
+    : public ::testing::TestWithParam<std::array<int, 2>> {
+protected:
+    static std::string makeResponse(const std::array<int, 2>& obstacleInfo) {
+        const int front = obstacleInfo[0];
+        const int left = obstacleInfo[1];
 
-    ctrl.avoid({1, 0, 1, 1});
+        std::ostringstream oss;
+        oss << "OBSTACLE "
+            << front << ' '
+            << 0 << ' '
+            << 0 << ' '
+            << left;
 
-    EXPECT_EQ(motor->rotateLeftCallCount, 1);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->stopCallCount, 0);
+        return oss.str();
+    }
+};
+
+TEST_P(ObstacleSensorValidInputTest, ParsesValidObstacleResponseWhenPowerIsOn) {
+    std::array<int, 2> expected = GetParam();
+
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
+
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    EXPECT_CALL(*network, request("FIND_OBSTACLE"))
+        .Times(1)
+        .WillOnce(Return(makeResponse(expected)));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+
+    std::array<int, 2> result = sensor.findObstacle();
+
+    EXPECT_EQ(result, expected);
 }
 
-TEST(DriveControllerTest, Avoid_FrontLeftBlocked_RightOpen_RotatesRight) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+INSTANTIATE_TEST_SUITE_P(
+    AllValidObstacleInputs,
+    ObstacleSensorValidInputTest,
+    ::testing::Values(
+        std::array<int, 2>{0, 0},
+        std::array<int, 2>{0, 1},
+        std::array<int, 2>{1, 0},
+        std::array<int, 2>{1, 1}
+    )
+);
 
-    ctrl.avoid({1, 1, 0, 0});
+TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnInvalidResponse) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    EXPECT_EQ(motor->rotateRightCallCount, 1);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->moveForwardCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->stopCallCount, 0);
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    EXPECT_CALL(*network, request("FIND_OBSTACLE"))
+        .Times(1)
+        .WillOnce(Return("GARBAGE"));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
 
-TEST(DriveControllerTest, Avoid_FrontLeftBackBlocked_RightOpen_RotatesRight) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnEmptyResponse) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    ctrl.avoid({1, 1, 0, 1});
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
-    EXPECT_EQ(motor->rotateRightCallCount, 1);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->stopCallCount, 0);
+    EXPECT_CALL(*network, request("FIND_OBSTACLE"))
+        .Times(1)
+        .WillOnce(Return(""));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
 
-TEST(DriveControllerTest, Avoid_FrontLeftRightBlocked_BackOpen_MovesBackThenRotatesLeft) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
+TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    ctrl.avoid({1, 1, 1, 0});
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
-    EXPECT_EQ(motor->moveBackwardCallCount, 1);
-    EXPECT_EQ(motor->stopCallCount, 1);
-    EXPECT_EQ(motor->rotateLeftCallCount, 1);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-    EXPECT_EQ(motor->moveForwardCallCount, 0);
+    EXPECT_CALL(*network, request("FIND_OBSTACLE"))
+        .Times(2)
+        .WillOnce(Return("OBSTACLE 1 0 0 0"))
+        .WillOnce(Return("OBSTACLE 0 0 0 1"));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{1, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 1}));
 }
 
-TEST(DriveControllerTest, Avoid_FrontLeftRightBlocked_BackOpen_CallOrderIsCorrect) {
-    auto motor = std::make_shared<OrderTrackingMockDriveMotor>();
-    DriveController ctrl(motor);
+TEST(ObstacleSensorTest, TurnOffPreventsObstacleSensorFromQuerying) {
+    auto network = std::make_shared<StrictMock<MockNetwork>>();
 
-    ctrl.avoid({1, 1, 1, 0});
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_ON"))
+        .Times(1)
+        .WillOnce(Return("OK"));
 
-    ASSERT_EQ(motor->callOrder.size(), 3u);
-    EXPECT_EQ(motor->callOrder[0], "moveBackward");
-    EXPECT_EQ(motor->callOrder[1], "stop");
-    EXPECT_EQ(motor->callOrder[2], "rotateLeft");
+    EXPECT_CALL(*network, request("OBSTACLE_SENSOR_OFF"))
+        .Times(1)
+        .WillOnce(Return("OK"));
+
+    ObstacleSensor sensor(network);
+
+    sensor.turnOn();
+    sensor.turnOff();
+
+    // StrictMock이므로 FIND_OBSTACLE이 호출되면 테스트 실패
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
-
-// --- moveForward / stop 위임 ---
-
-TEST(DriveControllerTest, MoveForward_DelegatesToMotorOnce) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
-
-    ctrl.moveForward();
-
-    EXPECT_EQ(motor->moveForwardCallCount, 1);
-    EXPECT_EQ(motor->stopCallCount, 0);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-}
-
-TEST(DriveControllerTest, Stop_DelegatesToMotorOnce) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
-
-    ctrl.stop();
-
-    EXPECT_EQ(motor->stopCallCount, 1);
-    EXPECT_EQ(motor->moveForwardCallCount, 0);
-    EXPECT_EQ(motor->moveBackwardCallCount, 0);
-    EXPECT_EQ(motor->rotateLeftCallCount, 0);
-    EXPECT_EQ(motor->rotateRightCallCount, 0);
-}
-
-// --- 복합 시나리오 ---
-
-TEST(DriveControllerTest, MoveForward_CalledMultipleTimes_CountAccumulates) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
-
-    ctrl.moveForward();
-    ctrl.moveForward();
-    ctrl.moveForward();
-
-    EXPECT_EQ(motor->moveForwardCallCount, 3);
-}
-
-TEST(DriveControllerTest, Avoid_AfterThrow_ControllerStillUsable) {
-    auto motor = std::make_shared<MockDriveMotor>();
-    DriveController ctrl(motor);
-
-    EXPECT_THROW(ctrl.avoid({0, 0, 0, 0}), std::invalid_argument);
-
-    EXPECT_NO_THROW(ctrl.moveForward());
-    EXPECT_EQ(motor->moveForwardCallCount, 1);
-}
-
-#else
-
-// ============================================================
-// CI 통합 테스트: MockNetwork + DriveMotor 사용
-// DriveController → DriveMotor → Network 전 체인 검증
-// USE_REAL_DEVICE 정의 시 사용 (실제 소켓 연결 불필요)
-// ============================================================
-
-// front 막힘, left 열림 → ROTATE_LEFT 커맨드 전송
-TEST(DriveControllerCITest, Avoid_FrontBlocked_LeftOpen_SendsRotateLeft) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    ctrl.avoid({1, 0, 0, 0});
-
-    ASSERT_EQ(network->sentCommands.size(), 1u);
-    EXPECT_EQ(network->sentCommands[0], "ROTATE_LEFT");
-}
-
-// front·left 막힘, right 열림 → ROTATE_RIGHT 커맨드 전송
-TEST(DriveControllerCITest, Avoid_FrontLeftBlocked_RightOpen_SendsRotateRight) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    ctrl.avoid({1, 1, 0, 0});
-
-    ASSERT_EQ(network->sentCommands.size(), 1u);
-    EXPECT_EQ(network->sentCommands[0], "ROTATE_RIGHT");
-}
-
-// front·left·right 막힘, back 열림 → MOVE_BACKWARD, STOP_MOTOR, ROTATE_LEFT 순서로 전송
-TEST(DriveControllerCITest, Avoid_FrontLeftRightBlocked_BackOpen_SendsCorrectSequence) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    ctrl.avoid({1, 1, 1, 0});
-
-    ASSERT_EQ(network->sentCommands.size(), 3u);
-    EXPECT_EQ(network->sentCommands[0], "MOVE_BACKWARD");
-    EXPECT_EQ(network->sentCommands[1], "STOP_MOTOR");
-    EXPECT_EQ(network->sentCommands[2], "ROTATE_LEFT");
-}
-
-// front 미차단 → 예외, 네트워크 커맨드 없음
-TEST(DriveControllerCITest, Avoid_FrontNotBlocked_ThrowsAndSendsNothing) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    EXPECT_THROW(ctrl.avoid({0, 0, 0, 0}), std::invalid_argument);
-
-    EXPECT_TRUE(network->sentCommands.empty());
-}
-
-// 사방 막힘 → 예외, 네트워크 커맨드 없음
-TEST(DriveControllerCITest, Avoid_AllSidesBlocked_ThrowsAndSendsNothing) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    EXPECT_THROW(ctrl.avoid({1, 1, 1, 1}), std::invalid_argument);
-
-    EXPECT_TRUE(network->sentCommands.empty());
-}
-
-// moveForward → MOVE_FORWARD 커맨드 전송
-TEST(DriveControllerCITest, MoveForward_SendsMoveForwardCommand) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    ctrl.moveForward();
-
-    ASSERT_EQ(network->sentCommands.size(), 1u);
-    EXPECT_EQ(network->sentCommands[0], "MOVE_FORWARD");
-}
-
-// stop → STOP_MOTOR 커맨드 전송
-TEST(DriveControllerCITest, Stop_SendsStopMotorCommand) {
-    auto network = std::make_shared<MockNetwork>();
-    auto motor = std::make_shared<DriveMotor>(network);
-    DriveController ctrl(motor);
-
-    ctrl.stop();
-
-    ASSERT_EQ(network->sentCommands.size(), 1u);
-    EXPECT_EQ(network->sentCommands[0], "STOP_MOTOR");
-}
-
-#endif

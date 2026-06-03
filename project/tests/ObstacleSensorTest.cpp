@@ -64,29 +64,36 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosWhenPowerIsOff) {
 
     ObstacleSensor sensor(network);
 
-    std::array<int, 4> result = sensor.findObstacle();
+    std::array<int, 2> result = sensor.findObstacle();
 
-    EXPECT_EQ(result, (std::array<int, 4>{0, 0, 0, 0}));
+    EXPECT_EQ(result, (std::array<int, 2>{0, 0}));
 }
 
-// index rule: [0] front, [1] right, [2] back, [3] left
+// network response rule: OBSTACLE front right back left
+// return rule: [0] front, [1] left
 class ObstacleSensorValidInputTest
-    : public ::testing::TestWithParam<std::array<int, 4>> {
+    : public ::testing::TestWithParam<std::array<int, 2>> {
 protected:
-    static std::string makeResponse(const std::array<int, 4>& obstacleInfo) {
+    static std::string makeResponse(const std::array<int, 2>& expected) {
+        int front = expected[0];
+        int left = expected[1];
+
+        int right = 0;
+        int back = 0;
+
         std::ostringstream oss;
         oss << "OBSTACLE "
-            << obstacleInfo[0] << ' '
-            << obstacleInfo[1] << ' '
-            << obstacleInfo[2] << ' '
-            << obstacleInfo[3];
+            << front << ' '
+            << right << ' '
+            << back << ' '
+            << left;
 
         return oss.str();
     }
 };
 
 TEST_P(ObstacleSensorValidInputTest, ParsesValidObstacleResponseWhenPowerIsOn) {
-    std::array<int, 4> expected = GetParam();
+    std::array<int, 2> expected = GetParam();
 
     auto network = std::make_shared<StrictMock<MockNetwork>>();
 
@@ -102,7 +109,7 @@ TEST_P(ObstacleSensorValidInputTest, ParsesValidObstacleResponseWhenPowerIsOn) {
 
     sensor.turnOn();
 
-    std::array<int, 4> result = sensor.findObstacle();
+    std::array<int, 2> result = sensor.findObstacle();
 
     EXPECT_EQ(result, expected);
 }
@@ -111,22 +118,10 @@ INSTANTIATE_TEST_SUITE_P(
     AllValidObstacleInputs,
     ObstacleSensorValidInputTest,
     ::testing::Values(
-        std::array<int, 4>{0, 0, 0, 0},
-        std::array<int, 4>{0, 0, 0, 1},
-        std::array<int, 4>{0, 0, 1, 0},
-        std::array<int, 4>{0, 0, 1, 1},
-        std::array<int, 4>{0, 1, 0, 0},
-        std::array<int, 4>{0, 1, 0, 1},
-        std::array<int, 4>{0, 1, 1, 0},
-        std::array<int, 4>{0, 1, 1, 1},
-        std::array<int, 4>{1, 0, 0, 0},
-        std::array<int, 4>{1, 0, 0, 1},
-        std::array<int, 4>{1, 0, 1, 0},
-        std::array<int, 4>{1, 0, 1, 1},
-        std::array<int, 4>{1, 1, 0, 0},
-        std::array<int, 4>{1, 1, 0, 1},
-        std::array<int, 4>{1, 1, 1, 0},
-        std::array<int, 4>{1, 1, 1, 1}
+        std::array<int, 2>{0, 0},
+        std::array<int, 2>{0, 1},
+        std::array<int, 2>{1, 0},
+        std::array<int, 2>{1, 1}
     )
 );
 
@@ -145,7 +140,7 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnInvalidResponse) {
 
     sensor.turnOn();
 
-    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
 
 TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnEmptyResponse) {
@@ -163,7 +158,7 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosOnEmptyResponse) {
 
     sensor.turnOn();
 
-    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
 
 TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
@@ -175,15 +170,15 @@ TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
 
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(2)
-        .WillOnce(Return("OBSTACLE 1 0 0 0"))
-        .WillOnce(Return("OBSTACLE 0 0 0 0"));
+        .WillOnce(Return("OBSTACLE 1 0 0 0"))  // front=1, left=0
+        .WillOnce(Return("OBSTACLE 0 0 0 1")); // front=0, left=1
 
     ObstacleSensor sensor(network);
 
     sensor.turnOn();
 
-    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{1, 0, 0, 0}));
-    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{1, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 1}));
 }
 
 TEST(ObstacleSensorTest, TurnOffPreventsObstacleSensorFromQuerying) {
@@ -202,6 +197,5 @@ TEST(ObstacleSensorTest, TurnOffPreventsObstacleSensorFromQuerying) {
     sensor.turnOn();
     sensor.turnOff();
 
-    // StrictMock이므로 FIND_OBSTACLE이 호출되면 테스트 실패
-    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 4>{0, 0, 0, 0}));
+    EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }
