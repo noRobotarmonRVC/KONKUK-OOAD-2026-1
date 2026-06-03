@@ -69,8 +69,9 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosWhenPowerIsOff) {
     EXPECT_EQ(result, (std::array<int, 2>{0, 0}));
 }
 
-// network response rule: OBSTACLE front right back left
+// network response rule: OBSTACLE front left right back
 // return rule: [0] front, [1] left
+// 1 = obstacle exists, 0 = open
 class ObstacleSensorValidInputTest
     : public ::testing::TestWithParam<std::array<int, 2>> {
 protected:
@@ -78,12 +79,15 @@ protected:
         const int front = obstacleInfo[0];
         const int left = obstacleInfo[1];
 
+        const int right = 0;
+        const int back = 0;
+
         std::ostringstream oss;
         oss << "OBSTACLE "
             << front << ' '
-            << 0 << ' '
-            << 0 << ' '
-            << left;
+            << left << ' '
+            << right << ' '
+            << back;
 
         return oss.str();
     }
@@ -167,8 +171,8 @@ TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
 
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(2)
-        .WillOnce(Return("OBSTACLE 1 0 0 0"))
-        .WillOnce(Return("OBSTACLE 0 0 0 1"));
+        .WillOnce(Return("OBSTACLE 1 0 0 0"))  // 앞=1, 왼쪽=0
+        .WillOnce(Return("OBSTACLE 0 1 0 0")); // 앞=0, 왼쪽=1
 
     ObstacleSensor sensor(network);
 
@@ -194,6 +198,5 @@ TEST(ObstacleSensorTest, TurnOffPreventsObstacleSensorFromQuerying) {
     sensor.turnOn();
     sensor.turnOff();
 
-    // StrictMock이므로 FIND_OBSTACLE이 호출되면 테스트 실패
     EXPECT_EQ(sensor.findObstacle(), (std::array<int, 2>{0, 0}));
 }

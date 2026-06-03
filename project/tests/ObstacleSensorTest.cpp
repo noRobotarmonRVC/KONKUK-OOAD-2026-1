@@ -69,24 +69,25 @@ TEST(ObstacleSensorTest, FindObstacleReturnsZerosWhenPowerIsOff) {
     EXPECT_EQ(result, (std::array<int, 2>{0, 0}));
 }
 
-// network response rule: OBSTACLE front right back left
+// network response rule: OBSTACLE front left right back
 // return rule: [0] front, [1] left
+// 1 = obstacle exists, 0 = open
 class ObstacleSensorValidInputTest
     : public ::testing::TestWithParam<std::array<int, 2>> {
 protected:
     static std::string makeResponse(const std::array<int, 2>& expected) {
-        int front = expected[0];
-        int left = expected[1];
+        const int front = expected[0];
+        const int left = expected[1];
 
-        int right = 0;
-        int back = 0;
+        const int right = 0;
+        const int back = 0;
 
         std::ostringstream oss;
         oss << "OBSTACLE "
             << front << ' '
+            << left << ' '
             << right << ' '
-            << back << ' '
-            << left;
+            << back;
 
         return oss.str();
     }
@@ -171,7 +172,7 @@ TEST(ObstacleSensorTest, FindObstacleRequestsNetworkEveryCall) {
     EXPECT_CALL(*network, request("FIND_OBSTACLE"))
         .Times(2)
         .WillOnce(Return("OBSTACLE 1 0 0 0"))  // front=1, left=0
-        .WillOnce(Return("OBSTACLE 0 0 0 1")); // front=0, left=1
+        .WillOnce(Return("OBSTACLE 0 1 0 0")); // front=0, left=1
 
     ObstacleSensor sensor(network);
 
