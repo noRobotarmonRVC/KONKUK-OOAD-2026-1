@@ -24,7 +24,7 @@
 namespace {
 
 std::unique_ptr<CleaningController> makeRealCleaningController() {
-    auto network = std::make_shared<TCPNetwork>();
+    auto network = std::make_shared<TCPNetwork>("127.0.0.1", 9000);
 
     auto motor = std::make_shared<DriveMotor>(network);
     auto cleaner = std::make_shared<SweepingUnit>(network);
