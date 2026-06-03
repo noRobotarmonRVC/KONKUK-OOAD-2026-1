@@ -13,30 +13,27 @@ DriveController::DriveController(std::shared_ptr<AbstractDriveMotor> motor)
     }
 }
 
-void DriveController::avoid(const std::array<int, 4>& obstacleInfo) {
+bool DriveController::avoid(const std::array<int, 2>& obstacleInfo,int flag) {
     // index rule: [0] front, [1] left, [2] right, [3] back
     const bool frontBlocked = obstacleInfo[0] != 0;
     const bool leftBlocked = obstacleInfo[1] != 0;
-    const bool rightBlocked = obstacleInfo[2] != 0;
-    const bool backBlocked = obstacleInfo[3] != 0;
 
-    if (!frontBlocked) {
-        throw std::invalid_argument("Drivecontroller: front obstacle not handled before");
+    if(flag ==0){
+        if (leftBlocked==0) {
+            motor->rotateLeft();
+            return 0;
+        }
+        else{
+            motor->rotateRight();
+            return 1;
+        }
     }
-
-    if (!leftBlocked) {
-        motor->rotateLeft();
-    } else if (!rightBlocked) {
-        motor->rotateRight();
-    } else if (rightBlocked && leftBlocked && !backBlocked) {
-        motor->moveBackward();
-        // RVC가 뒤로 갈 시간을 기다리기
-        sleep(2);
-        motor->stop();
-        motor->rotateLeft();
-    } else {
-        throw std::invalid_argument("DriveController: obstacle in all sides exception not handled");
+    if(frontBlocked==1){
+        motor -> rotateLeft();
+        motor -> moveForward();
+        motor -> rotateLeft();
     }
+    return 0;
 }
 
 void DriveController::moveForward() {

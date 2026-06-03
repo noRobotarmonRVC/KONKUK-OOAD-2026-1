@@ -31,7 +31,7 @@ file(GLOB PROJECT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
 )
 
-# 테스트 빌드에서는 main.cpp 제외
+# main.cpp는 다른 실행파일/테스트에 중복으로 들어가면 안 되므로 제외
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*main.cpp$")
 
 # ============================================================
@@ -44,6 +44,19 @@ add_executable(rvc
 )
 
 target_include_directories(rvc PRIVATE
+    src/include
+)
+
+# ============================================================
+# TCP server executable
+# ============================================================
+
+add_executable(rvc_server
+    server/server.cpp
+    ${PROJECT_SOURCES}
+)
+
+target_include_directories(rvc_server PRIVATE
     src/include
 )
 
