@@ -86,6 +86,7 @@ TEST(CleaningControllerTest, RealDeviceStopWhenNotCleaningDoesNothing) {
 #include "AbstractObstacleSensor.hpp"
 #include "AbstractSweepingController.hpp"
 
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::InSequence;
 using ::testing::Return;
@@ -155,6 +156,7 @@ protected:
         );
     }
 
+    // 장애물 없음 + 먼지 없음 + 청소기 OFF: 루프가 가장 단순한 경로만 타도록
     void allowCleaningLoopIdle() {
         EXPECT_CALL(*obstacleSensor, findObstacle())
             .Times(AnyNumber())
@@ -181,6 +183,10 @@ protected:
     }
 };
 
+// ============================================================
+// 생성자 null 검증 (4개 의존성)
+// ============================================================
+
 TEST_F(CleaningControllerMockTest, ConstructorThrowsWhenDriveControllerIsNull) {
     EXPECT_THROW(
         CleaningController(
@@ -200,6 +206,19 @@ TEST_F(CleaningControllerMockTest, ConstructorThrowsWhenSweepingControllerIsNull
             drive,
             nullptr,
             powerManager,
+            dustSensor,
+            obstacleSensor
+        ),
+        std::invalid_argument
+    );
+}
+
+TEST_F(CleaningControllerMockTest, ConstructorThrowsWhenDevicePowerManagerIsNull) {
+    EXPECT_THROW(
+        CleaningController(
+            drive,
+            sweeping,
+            nullptr,
             dustSensor,
             obstacleSensor
         ),
@@ -233,6 +252,10 @@ TEST_F(CleaningControllerMockTest, ConstructorThrowsWhenObstacleSensorIsNull) {
     );
 }
 
+// ============================================================
+// run / stop 기본 동작
+// ============================================================
+
 TEST_F(CleaningControllerMockTest, RunOnly) {
     auto controller = makeController();
 
@@ -252,6 +275,37 @@ TEST_F(CleaningControllerMockTest, StopOnly) {
 
     EXPECT_FALSE(controller->isCleaning());
 }
+
+TEST_F(CleaningControllerMockTest, RunThenStop) {
+    auto controller = makeController();
+
+    allowCleaningLoopIdle();
+
+    controller->run();
+
+    EXPECT_TRUE(controller->isCleaning());
+
+    stopAndWaitDetachedThread(*controller);
+}
+
+// run() 중복 호출 → 두 번째는 is_cleaning == true 라 즉시 return (early-return 분기 커버)
+TEST_F(CleaningControllerMockTest, RunTwiceSecondCallReturnsEarly) {
+    auto controller = makeController();
+
+    allowCleaningLoopIdle();
+
+    controller->run();
+    EXPECT_TRUE(controller->isCleaning());
+
+    controller->run();  // early return
+    EXPECT_TRUE(controller->isCleaning());
+
+    stopAndWaitDetachedThread(*controller);
+}
+
+// ============================================================
+// 전원 컴포넌트 on/off
+// ============================================================
 
 TEST_F(CleaningControllerMockTest, TurnOnThenRun) {
     auto controller = makeController();
@@ -297,18 +351,6 @@ TEST_F(CleaningControllerMockTest, TurnOnThenRunThenTurnOff) {
     EXPECT_TRUE(controller->isCleaning());
 
     controller->turnOffDeviceComponents();
-
-    EXPECT_TRUE(controller->isCleaning());
-
-    stopAndWaitDetachedThread(*controller);
-}
-
-TEST_F(CleaningControllerMockTest, RunThenStop) {
-    auto controller = makeController();
-
-    allowCleaningLoopIdle();
-
-    controller->run();
 
     EXPECT_TRUE(controller->isCleaning());
 
@@ -372,6 +414,83 @@ TEST_F(CleaningControllerMockTest, TurnOnThreeTimes) {
     controller->turnOnDeviceComponents();
 
     EXPECT_FALSE(controller->isCleaning());
+}
+
+// ============================================================
+// 장애물 분기 커버 (run() 루프 내부 if (obstacleInfo[0]) 경로)
+// ============================================================
+
+// 장애물 감지 → 1차 avoid 성공 → 재감지 → 2차 avoid → 청소기 ON → moveForward
+// run() 루프의 모든 주요 분기를 한 번에 통과시킨다.
+TEST_F(CleaningControllerMockTest, ObstacleDetectedThenAvoidAndMoveForward) {
+    auto controller = makeController();
+
+    EXPECT_CALL(*obstacleSensor, findObstacle())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::array<int, 2>{1, 0}));
+
+    EXPECT_CALL(*sweeping, turnOff()).Times(AnyNumber());
+    EXPECT_CALL(*sweeping, turnOn()).Times(AnyNumber());
+    EXPECT_CALL(*drive, stop()).Times(AnyNumber());
+
+    // 1차 avoid 성공 → if 내부 진입
+    EXPECT_CALL(*drive, avoid(_, 0))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(true));
+    // 2차 avoid (재감지 후 호출)
+    EXPECT_CALL(*drive, avoid(_, 1))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(false));
+
+    EXPECT_CALL(*dustSensor, findDust())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*sweeping, clean(true)).Times(AnyNumber());
+
+    // 청소기 ON → moveForward 분기 진입
+    EXPECT_CALL(*sweeping, isOn())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*drive, moveForward()).Times(AnyNumber());
+
+    controller->run();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+    stopAndWaitDetachedThread(*controller);
+}
+
+// 장애물 감지 → 1차 avoid 실패 → if 내부(재감지+2차 avoid) skip
+// → 청소기 OFF → moveForward 호출 안 함
+TEST_F(CleaningControllerMockTest, ObstacleDetectedButAvoidFails) {
+    auto controller = makeController();
+
+    EXPECT_CALL(*obstacleSensor, findObstacle())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::array<int, 2>{1, 0}));
+
+    EXPECT_CALL(*sweeping, turnOff()).Times(AnyNumber());
+    EXPECT_CALL(*sweeping, turnOn()).Times(AnyNumber());
+    EXPECT_CALL(*drive, stop()).Times(AnyNumber());
+
+    // 1차 avoid 실패 → 내부 분기 skip (avoid(_,1)은 호출되면 안 됨)
+    EXPECT_CALL(*drive, avoid(_, 0))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(false));
+
+    EXPECT_CALL(*dustSensor, findDust())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(false));
+    EXPECT_CALL(*sweeping, clean(false)).Times(AnyNumber());
+
+    // 청소기 OFF → moveForward 분기 미진입
+    EXPECT_CALL(*sweeping, isOn())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(false));
+
+    controller->run();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+    stopAndWaitDetachedThread(*controller);
 }
 
 #endif
