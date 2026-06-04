@@ -216,7 +216,7 @@ public:
 std::vector<std::string> RvcSimulator::map = {
     "OOOOOOOOOOOOOOOOOOOO",
     "O   .      O      OO",
-    "O OOO  .      O   OO",
+    "O OOO  .  O   O   OO",
     "O     O      .    OO",
     "O .        O      OO",
     "O      .          OO",
